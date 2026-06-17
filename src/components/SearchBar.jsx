@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react'
 import { CrossIcon, SearchIcon, SparklesIcon, TargetIcon } from './Icons'
 import boundary from '../assets/Delhi_bnd.geojson?raw'
+import carIcon from '../assets/car.svg'
 
 export default function SearchBar({
     onSearch,
     onClearSearch,
     onAnalyze,
     onOpenContextualPanel,
+    onShowCityWiseAnalyse,
     locationFound,
     isAnalyzing,
     locationName,
-    showGrid, setShowGrid,
-    onRadiusChange,
+    setRadiusKm,
+    showGrid, setShowGrid
+    // to show grid over map
 }) {
 
     const [query, setQuery] = useState('')
@@ -20,27 +23,16 @@ export default function SearchBar({
     const radiusOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     const [radiusIndex, setRadiusIndex] = useState(0)
     const geojson = JSON.parse(boundary)
-    // useEffect(() => {
-    //     if (locationName) {
-    //         setQuery(locationName)
-    //     }
-    // }, [locationName])
-
-
-
     useEffect(() => {
         if (locationName) {
             setQuery(locationName)
-            setIsSearchExecuted(true)
-        } else {
-            setIsSearchExecuted(false)
         }
     }, [locationName])
 
     useEffect(() => {
         const newRadius = radiusOptions[radiusIndex]
         setRadius(newRadius)
-        onRadiusChange?.(newRadius)
+        setRadiusKm(newRadius)
     }, [radiusIndex])
 
     async function handleSearch() {
@@ -54,19 +46,11 @@ export default function SearchBar({
         setIsSearchExecuted(false)
     }
 
-    // function handleClearSearch() {
-    //     setQuery('')
-    //     setIsSearchExecuted(false)
-    //     onClearSearch?.()
-    // }
-
     function handleClearSearch() {
         setQuery('')
         setIsSearchExecuted(false)
-        setRadiusIndex(0)   // ← resets slider back to 1km
         onClearSearch?.()
     }
-
     const percentage = (radiusIndex / (radiusOptions.length - 1)) * 100;
     return (
         <div className="group rounded-xl  bg-white/72 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
@@ -105,6 +89,21 @@ export default function SearchBar({
                         <h3 className="font-bold uppercase text-slate-900">
                             Search Location
                         </h3>
+                    </div>
+                    <div className="group relative inline-block">
+                        <button
+                            type="button"
+                            onClick={onShowCityWiseAnalyse}
+                            className="rounded-full bg-cyan-300 p-1 text-sm font-semibold text-white transition hover:bg-cyan-700">
+                            <img src={carIcon} alt="Back" className="h-6 w-6" />
+                        </button>
+                        <span
+                            className="pointer-events-none absolute top-4 right-2 mt-3 rounded
+                                          bg-gray-800 px-2 py-1 text-xs text-white whitespace-nowrap
+                                          scale-95 opacity-0 transition-all duration-150
+                                          group-hover:scale-100 group-hover:opacity-100">
+                            Car Showroom
+                        </span>
                     </div>
                 </div>
                 <p className="text-xs text-slate-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
@@ -210,7 +209,7 @@ export default function SearchBar({
             </div>
             <button
                 onClick={() => {
-                    onAnalyze(radius)
+                    onAnalyze()
                 }}
                 disabled={!locationFound || isAnalyzing}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/40 transition-all duration-200 hover:shadow-xl hover:shadow-blue-600/50  disabled:cursor-not-allowed disabled:from-[#87aacf] disabled:to-[#3d88d8] disabled:shadow-none disabled:opacity-60"

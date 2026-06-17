@@ -12,9 +12,9 @@ import {
     UtensilsIcon
 } from './Icons'
 import { useState, useEffect } from 'react';
-import { fetchDashboardCategories } from '../services/api';
+import { fetchDashboardCategories, fetchCategoriesCount } from '../services/api';
 
-export default function Dashboard({ locationName, summary, onDownload, onItemClick, onSelectionChange }) {
+export default function Dashboard({ locationName, summary, lat, lon, radiusKm, onDownload, onItemClick, onSelectionChange }) {
     const [categories, setCategories] = useState([]);
     const [selectedCategories, setSelectedCategories] = useState([]);
 
@@ -27,12 +27,17 @@ export default function Dashboard({ locationName, summary, onDownload, onItemCli
 
         async function loadCategories() {
             try {
-                const categoryList = await fetchDashboardCategories();
+                const [categoryList, counts] = await Promise.all([
+                    fetchDashboardCategories(),
+                    lat != null && lon != null && radiusKm != null
+                        ? fetchCategoriesCount(lat, lon, radiusKm)
+                        : Promise.resolve({})
+                ]);
 
                 if (!mounted) return;
 
                 const normalizedCounts = Object.fromEntries(
-                    Object.entries(summary || {}).map(([key, value]) => [normalizeKey(key), value])
+                    Object.entries(counts).map(([key, value]) => [normalizeKey(key), value])
                 );
 
                 const enriched = categoryList
@@ -59,7 +64,7 @@ export default function Dashboard({ locationName, summary, onDownload, onItemCli
         return () => {
             mounted = false;
         };
-    }, [summary]);
+    }, [lat, lon, radiusKm]);
 
     const toggleCategory = (key) => {
         const nextSelectedCategories = selectedCategories.includes(key)

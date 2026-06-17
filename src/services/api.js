@@ -1,4 +1,4 @@
-const BASE = 'http://192.168.1.16:8000/api'
+const BASE = 'http://192.168.1.16:8001/api'
 
 // ── Session ID — stored after /analyze, sent on every /chat ──
 // Also accepts sessionId passed explicitly from App.jsx
@@ -57,7 +57,7 @@ export async function searchLocation(query) {
 export async function fetchPOIs(lat, lon, radius_km) {
     return post('/fetch-pois', { lat, lon, radius_km })
 }
-debugger
+
 export async function fetchRoads(lat, lon, radius_km) {
     return post('/fetch-roads', { lat, lon, radius_km })
 }
@@ -69,7 +69,7 @@ export async function analyzeLocation(location, lat, lon, radius_km, poi_data) {
         location, lat, lon, radius_km, poi_data
     })
 
-    // ✅ Save session_id internally as fallback
+    //  Save session_id internally as fallback
     if (data.session_id) {
         _sessionId = data.session_id
         console.log('🔍 Session ID saved:', _sessionId)
@@ -196,4 +196,78 @@ export async function fetchContextualSubCategories(tableNames) {
         console.error("Failed to fetch dashboard data:", error);
         throw error;
     }
+}
+
+
+
+// APP2 API is getting started from here
+
+export async function fetchCityWiseDropdownItems(city) {
+    try {
+        const response = await fetch(`${BASE}/app2/city`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ city }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (Array.isArray(data)) return data;
+
+        const possibleItems =
+            data.data ||
+            data.items ||
+            data.zones ||
+            data.result ||
+            data.results ||
+            data.city ||
+            data.response;
+
+        if (Array.isArray(possibleItems)) return possibleItems;
+
+        if (possibleItems && typeof possibleItems === "object") {
+            const nestedItems =
+                possibleItems.data ||
+                possibleItems.items ||
+                possibleItems.zones ||
+                possibleItems.result ||
+                possibleItems.results;
+
+            if (Array.isArray(nestedItems)) return nestedItems;
+            return Object.values(possibleItems);
+        }
+
+        if (data && typeof data === "object") {
+            return Object.values(data);
+        }
+
+        return [];
+    } catch (error) {
+        console.error("Failed to fetch city wise dropdown items:", error);
+        throw error;
+    }
+}
+
+
+
+
+export async function analyzeZones(city, zones) {
+    const response = await fetch(`${BASE}/app2/zones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ city, zones })
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to analyze zones');
+    }
+
+    return response.json();
 }
