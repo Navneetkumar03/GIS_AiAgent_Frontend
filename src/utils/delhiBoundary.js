@@ -1,4 +1,6 @@
 import boundaryRaw from '../assets/Delhi_bnd.geojson?raw'
+
+// import boundaryRaw from '../assets/Delhi_bnd_from_zones.geojson?raw'
 import { point, booleanPointInPolygon } from '@turf/turf'
 
 const boundaryGeoJson = JSON.parse(boundaryRaw)

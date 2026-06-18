@@ -3,7 +3,6 @@ import { ChevronDownIcon, SparklesIcon } from './Icons'
 import { fetchCityWiseDropdownItems, analyzeZones, fetchDashboardCategories } from '../services/api'
 import targetIcon from '../assets/target.png'
 
-// Normalize key to match dashboard category keys
 function normalizeKey(value) {
     return String(value || '')
         .trim()
@@ -11,7 +10,24 @@ function normalizeKey(value) {
         .replace(/[_\s-]+/g, '')
 }
 
-const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
+// ── Shared helpers for "Car Showroom" extraction/exclusion ──
+// Previously this logic was copy-pasted in four different places
+// (combined total, combined infra reduce, per-zone count, per-zone infra filter).
+// Centralizing it here means there's only one place to fix if the key ever changes.
+function getShowroomCount(summary) {
+    if (!summary || typeof summary !== 'object') return 0
+    const key = Object.keys(summary).find(k => normalizeKey(k) === 'carshowroom')
+    return key ? summary[key] : 0
+}
+
+function excludeShowroom(summary) {
+    if (!summary || typeof summary !== 'object') return {}
+    return Object.fromEntries(
+        Object.entries(summary).filter(([key]) => normalizeKey(key) !== 'carshowroom')
+    )
+}
+
+const CityWiseAnalyse = ({ onBack, onAnalysisComplete, onZonesSelected }) => {
     const dropdownItems = ['Select city', 'Delhi']
     const [selectedItem, setSelectedItem] = useState(dropdownItems[0])
     const [secondDropdownItems, setSecondDropdownItems] = useState([])
@@ -21,10 +37,8 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
     const [isAnalyzing, setIsAnalyzing] = useState(false)
     const [analysisResult, setAnalysisResult] = useState(null)
 
-    // ── Icon mapping from dashboard ──
     const [iconMap, setIconMap] = useState({})
 
-    // Fetch dashboard categories to get icons
     useEffect(() => {
         let mounted = true
         async function loadIcons() {
@@ -45,7 +59,6 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
         return () => { mounted = false }
     }, [])
 
-    // ── Load zones when city changes ──
     useEffect(() => {
         if (selectedItem === dropdownItems[0]) {
             setSecondDropdownItems([])
@@ -55,7 +68,6 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
         }
 
         let ignore = false
-
         async function loadItems() {
             setIsLoadingItems(true)
             setItemsError('')
@@ -78,7 +90,6 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
         return () => { ignore = true }
     }, [selectedItem])
 
-    // ── Helpers ──
     function getZoneValue(item) {
         return typeof item === 'string'
             ? item
@@ -93,7 +104,11 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
     function handleZoneToggle(value) {
         setSelectedZones(prev => {
             const next = new Set(prev)
-            next.has(value) ? next.delete(value) : next.add(value)
+            if (next.has(value)) {
+                next.delete(value)
+            } else {
+                next.add(value)
+            }
             return next
         })
     }
@@ -105,7 +120,23 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
         setSelectedZones(new Set())
     }
 
-    // ── Analyze ──
+    // async function handleAnalyze() {
+    //     if (selectedZones.size === 0) return
+    //     setIsAnalyzing(true)
+    //     setAnalysisResult(null)
+
+    //     try {
+    //         const result = await analyzeZones(selectedItem, [...selectedZones])
+    //         setAnalysisResult(result)
+    //         if (onAnalysisComplete) {
+    //             onAnalysisComplete(result)
+    //         }
+    //     } catch (error) {
+    //         alert(error.message || 'Analysis failed')
+    //     } finally {
+    //         setIsAnalyzing(false)
+    //     }
+    // }
     async function handleAnalyze() {
         if (selectedZones.size === 0) return
         setIsAnalyzing(true)
@@ -114,9 +145,16 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
         try {
             const result = await analyzeZones(selectedItem, [...selectedZones])
             setAnalysisResult(result)
-            // Pass result up to SidePanel
             if (onAnalysisComplete) {
                 onAnalysisComplete(result)
+            }
+
+            // --- NEW: pass selected zone labels to parent (for map highlighting) ---
+            if (onZonesSelected) {
+                const selectedLabels = secondDropdownItems
+                    .filter(item => selectedZones.has(getZoneValue(item)))
+                    .map(item => getZoneLabel(item))
+                onZonesSelected(selectedLabels)
             }
         } catch (error) {
             alert(error.message || 'Analysis failed')
@@ -127,7 +165,8 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
 
     const citySelected = selectedItem !== dropdownItems[0]
 
-    // ── Render cards with icons ──
+    // ── Reusable card renderer ──
+
     function renderSummaryCards(summary) {
         if (!summary || typeof summary !== 'object') return null
 
@@ -135,7 +174,7 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
         if (entries.length === 0) return null
 
         return (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
                 {entries.map(([label, count]) => {
                     const normalizedLabel = normalizeKey(label)
                     const icon = iconMap[normalizedLabel] || ''
@@ -143,22 +182,24 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
                     return (
                         <div
                             key={label}
-                            className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-2 shadow-sm border border-slate-200/60"
+                            className="flex flex-col items-center justify-center rounded-lg bg-white/80 px-2 py-1.5 shadow-sm border border-slate-200/60"
                         >
-                            <div className="flex items-center gap-2 min-w-0">
+                            {/* Row 1: Icon + Name (side by side) */}
+                            <div className="flex items-center gap-1.5 w-full justify-center">
                                 {icon && (
-                                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 overflow-hidden">
+                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-50 overflow-hidden">
                                         <div
                                             className="h-full w-full flex items-center justify-center"
                                             dangerouslySetInnerHTML={{ __html: icon }}
                                         />
                                     </span>
                                 )}
-                                <span className="text-xs font-semibold uppercase text-slate-600 truncate">
+                                <span className="text-[9px] font-semibold uppercase text-slate-600 break-words leading-tight">
                                     {label}
                                 </span>
                             </div>
-                            <span className="text-sm font-bold text-cyan-700 ml-2">
+                            {/* Row 2: Count (below) */}
+                            <span className="text-sm font-bold text-cyan-700 leading-tight">
                                 {count}
                             </span>
                         </div>
@@ -167,6 +208,46 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
             </div>
         )
     }
+
+    // ── Helper to extract total registrations from vehicle_registration_summary ──
+    function getTotalRegistrations(regSummary) {
+        if (!regSummary || typeof regSummary !== 'object') return 0
+        // If it's already a number, return it
+        if (typeof regSummary === 'number') return regSummary
+        // If it's an object, sum all numeric values
+        const values = Object.values(regSummary)
+        if (values.every(v => typeof v === 'number')) {
+            return values.reduce((a, b) => a + b, 0)
+        }
+        // Fallback: try common keys
+        return regSummary.total || regSummary.registrations || regSummary.count || 0
+    }
+
+    // ── Derived analysis aggregates ──
+    // Computed once here (instead of inline inside JSX) so the values used to decide
+    // *whether* to show a section and the values used to *render* it can never disagree.
+    const zones = analysisResult?.zones || []
+    const hasZones = zones.length > 0
+
+    const totalShowrooms = hasZones
+        ? zones.reduce((sum, zone) => sum + getShowroomCount(zone.summary), 0)
+        : 0
+
+    const totalVehicles = hasZones
+        ? zones.reduce((sum, zone) => sum + getTotalRegistrations(zone.vehicle_registration_summary), 0)
+        : 0
+
+    const combinedInfra = hasZones
+        ? zones.reduce((acc, zone) => {
+            Object.entries(excludeShowroom(zone.summary)).forEach(([key, count]) => {
+                acc[key] = (acc[key] || 0) + count
+            })
+            return acc
+        }, {})
+        : {}
+
+    const hasCombinedInfra = Object.keys(combinedInfra).length > 0
+    const hasRoadData = zones.some(z => z.road_summary && Object.keys(z.road_summary).length > 0)
 
     return (
         <div className="rounded-xl bg-white/72 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
@@ -255,7 +336,7 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
 
                             {selectedZones.size > 0 && (
                                 <p className="mt-1 text-xs text-cyan-700">
-                                    {selectedZones.size} zone(s) selected
+                                    {selectedZones.size} zone selected
                                 </p>
                             )}
                         </>
@@ -273,52 +354,105 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete }) => {
                         </button>
                     </div>
 
-                    {/* ─── CARDS with icons ─── */}
-                    {analysisResult && (
-                        <div className="mt-4">
-                            {analysisResult.summary && (
-                                <>
-                                    <h4 className="text-sm font-bold uppercase text-slate-700 mb-2">
-                                        Summary
-                                    </h4>
-                                    {renderSummaryCards(analysisResult.summary)}
-                                </>
-                            )}
+                    {/* ─── RESULT RENDERING ─── */}
+                    {hasZones && (
+                        <div className="mt-4 space-y-5">
 
-                            {/* Optional: Zone details (if available) */}
-                            {analysisResult.zone_details && (
-                                <>
-                                    <h4 className="text-sm font-bold uppercase text-slate-700 mt-4 mb-2">
-                                        Zone Details
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {analysisResult.zone_details.map((zone) => (
-                                            <div
-                                                key={zone.zone_id || zone.id}
-                                                className="rounded-xl bg-white/80 p-3 shadow-sm border border-slate-200/60"
-                                            >
-                                                <div className="font-semibold text-slate-800">
-                                                    {zone.name || zone.zone_name}
-                                                </div>
-                                                <div className="text-xs text-slate-500">
-                                                    {zone.poi_counts
-                                                        ? Object.entries(zone.poi_counts)
-                                                            .map(([k, v]) => `${k}: ${v}`)
-                                                            .join(' · ')
-                                                        : 'No POI data'}
-                                                </div>
-                                            </div>
-                                        ))}
+                            {/* 1. Combined Car Showroom Market Summary */}
+                            <div className="rounded-xl bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 p-3 shadow-sm">
+                                <h4 className="text-sm font-bold uppercase text-cyan-800 flex items-center justify-center gap-2 mb-2">
+                                    Car Showroom Summary
+                                </h4>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                    <div className="rounded-xl bg-white/80 px-2 py-2 shadow-sm border border-slate-200 overflow-hidden">
+                                        <p className="text-[9px] text-slate-500 uppercase truncate font-extrabold">Total Car Dealers</p>
+                                        <p className="text-lg font-bold text-cyan-700">{totalShowrooms}</p>
+                                        <p className="text-[9px] text-slate-400 truncate font-semibold">Competition level</p>
                                     </div>
+                                    <div className="rounded-xl bg-white/80 px-2 py-2 shadow-sm border border-slate-200 overflow-hidden">
+                                        <p className="text-[9px] text-slate-500 uppercase truncate font-extrabold">Total Registrations</p>
+                                        <p className="text-lg font-bold text-cyan-700">{totalVehicles.toLocaleString()}</p>
+                                        <p className="text-[9px] text-slate-400 truncate font-semibold">Potential customers</p>
+                                    </div>
+                                </div>
+                                {hasRoadData && (
+                                    <div className="mt-2 text-[11px] text-slate-600 bg-white/70 rounded-lg px-3 py-2 font-extrabold">
+                                        Road connectivity: Available in selected zones
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 2. Supporting Infrastructure (combined, excluding car-related) */}
+                            {hasCombinedInfra && (
+                                <>
+                                    <h4 className="text-sm font-bold uppercase text-slate-700 text-center">
+                                        Supporting Infra (Combined)
+                                    </h4>
+                                    {renderSummaryCards(combinedInfra)}
                                 </>
                             )}
 
-                            {/* Fallback: show raw data if no known structure */}
-                            {!analysisResult.summary && !analysisResult.zone_details && (
-                                <div className="rounded-xl bg-white/80 p-3 text-xs text-slate-600 border border-slate-200/60">
-                                    <pre className="whitespace-pre-wrap">{JSON.stringify(analysisResult, null, 2)}</pre>
-                                </div>
-                            )}
+                            {/* 3. Zone-wise Details */}
+                            <hr className="border-slate-200" />
+                            <h4 className="text-sm font-bold uppercase text-slate-700 text-center">
+                                Zone wise Details
+                            </h4>
+
+                            {zones.map((zone, idx) => {
+                                const zoneName = zone.zone || `Zone ${idx + 1}`
+                                const showroomCount = getShowroomCount(zone.summary)
+                                const regCount = getTotalRegistrations(zone.vehicle_registration_summary)
+                                const infraSummary = excludeShowroom(zone.summary)
+
+                                return (
+                                    <div key={zoneName} className="rounded-xl bg-white/80 p-3 shadow-sm border border-slate-200/60">
+                                        {/* Zone Name */}
+                                        <h5 className="font-bold text-slate-800 text-lg mb-2 text-center">
+                                            {zoneName}
+                                        </h5>
+
+                                        {/* Stats Cards */}
+                                        <div className="grid grid-cols-2 gap-1 mb-3">
+                                            {showroomCount > 0 && (
+                                                <div className="bg-cyan-100 rounded-xl px-3 py-2 flex flex-col items-center">
+                                                    <span className="text-[9px] font-medium text-cyan-700 uppercase">
+                                                        Total Car Dealers
+                                                    </span>
+                                                    <span className="text-lg font-bold text-cyan-900">
+                                                        {showroomCount}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {regCount > 0 && (
+                                                <div className="bg-blue-100 rounded-xl px-3 py-2 flex flex-col items-center">
+                                                    <span className="text-[9px] font-medium text-blue-700 uppercase">
+                                                        Total Registrations
+                                                    </span>
+                                                    <span className="text-lg font-bold text-blue-900">
+                                                        {regCount.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Infrastructure cards (reuses renderSummaryCards) */}
+                                        {Object.keys(infraSummary).length > 0 ? (
+                                            renderSummaryCards(infraSummary)
+                                        ) : (
+                                            <p className="text-xs text-slate-400">No infrastructure data</p>
+                                        )}
+                                    </div>
+                                )
+                            })}
+
+                        </div>
+                    )}
+
+                    {/* Fallback: if zones array missing or empty */}
+                    {analysisResult && !hasZones && (
+                        <div className="mt-4 rounded-xl bg-white/80 p-3 text-xs text-slate-600 border border-slate-200/60">
+                            <pre className="whitespace-pre-wrap">{JSON.stringify(analysisResult, null, 2)}</pre>
                         </div>
                     )}
                 </div>
