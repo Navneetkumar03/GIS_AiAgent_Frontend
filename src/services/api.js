@@ -1,4 +1,4 @@
-const BASE = 'http://192.168.1.16:8001/api'
+const BASE = 'http://192.168.1.29:8002/api'
 
 // ── Session ID — stored after /analyze, sent on every /chat ──
 // Also accepts sessionId passed explicitly from App.jsx
@@ -108,6 +108,29 @@ export async function exportPDF(location, lat, lon, radius_km, summary, roadSumm
 
 // 6. Reverse geocode — map click coordinates → place name
 //    Calls MapTiler directly from frontend (no backend needed)
+// export async function reverseGeocode(lat, lon) {
+//     const key = import.meta.env.VITE_MAPTILER_KEY
+//     const response = await fetch(
+//         `https://api.maptiler.com/geocoding/${lon},${lat}.json` +
+//         `?key=${key}&language=en`
+//     )
+
+//     if (!response.ok) {
+//         throw new Error('Reverse geocoding failed')
+//     }
+
+//     const data = await response.json()
+
+//     if (!data.features || data.features.length === 0) {
+//         throw new Error('No location found at this point')
+//     }
+
+//     return {
+//         lat,
+//         lon,
+//         place_name: data.features[0].place_name
+//     }
+// }
 export async function reverseGeocode(lat, lon) {
     const key = import.meta.env.VITE_MAPTILER_KEY
     const response = await fetch(

@@ -27,7 +27,12 @@ function excludeShowroom(summary) {
     )
 }
 
-const CityWiseAnalyse = ({ onBack, onAnalysisComplete, onZonesSelected }) => {
+const CityWiseAnalyse = ({
+    onBack,
+    onAnalysisComplete,
+    onZonesSelected,
+    onCategorySelect
+}) => {
     const dropdownItems = ['Select city', 'Delhi']
     const [selectedItem, setSelectedItem] = useState(dropdownItems[0])
     const [secondDropdownItems, setSecondDropdownItems] = useState([])
@@ -36,6 +41,7 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete, onZonesSelected }) => {
     const [itemsError, setItemsError] = useState('')
     const [isAnalyzing, setIsAnalyzing] = useState(false)
     const [analysisResult, setAnalysisResult] = useState(null)
+    const [activeCard, setActiveCard] = useState(null)
 
     const [iconMap, setIconMap] = useState({})
 
@@ -120,23 +126,6 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete, onZonesSelected }) => {
         setSelectedZones(new Set())
     }
 
-    // async function handleAnalyze() {
-    //     if (selectedZones.size === 0) return
-    //     setIsAnalyzing(true)
-    //     setAnalysisResult(null)
-
-    //     try {
-    //         const result = await analyzeZones(selectedItem, [...selectedZones])
-    //         setAnalysisResult(result)
-    //         if (onAnalysisComplete) {
-    //             onAnalysisComplete(result)
-    //         }
-    //     } catch (error) {
-    //         alert(error.message || 'Analysis failed')
-    //     } finally {
-    //         setIsAnalyzing(false)
-    //     }
-    // }
     async function handleAnalyze() {
         if (selectedZones.size === 0) return
         setIsAnalyzing(true)
@@ -166,8 +155,47 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete, onZonesSelected }) => {
     const citySelected = selectedItem !== dropdownItems[0]
 
     // ── Reusable card renderer ──
+// function handleCategoryClick(category) {
 
-    function renderSummaryCards(summary) {
+//     if (!analysisResult?.zones?.length) return
+
+//     let allPois = []
+
+//     analysisResult.zones.forEach(zone => {
+
+//         const pois =
+//             zone?.pois?.[category] || []
+
+//         allPois.push(...pois)
+//     })
+
+//     console.log(category)
+//     console.log(allPois)
+
+//     onCategorySelect?.(
+//         category,
+//         allPois
+//     )
+// }
+function handleCategoryClick(zoneName, category) {
+
+    const zone = analysisResult?.zones?.find(
+        z => z.zone === zoneName
+    )
+
+    if (!zone) return
+
+    const pois = zone?.pois?.[category] || []
+
+    setActiveCard(`${zoneName}-${category}`)
+
+    onCategorySelect?.(
+        category,
+        pois,
+        zoneName
+    )
+}
+    function renderSummaryCards(summary,zoneName) {
         if (!summary || typeof summary !== 'object') return null
 
         const entries = Object.entries(summary)
@@ -182,7 +210,17 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete, onZonesSelected }) => {
                     return (
                         <div
                             key={label}
-                            className="flex flex-col items-center justify-center rounded-lg bg-white/80 px-2 py-1.5 shadow-sm border border-slate-200/60"
+                               onClick={() => handleCategoryClick(zoneName,label)}
+                         className={`
+    flex flex-col items-center justify-center
+    rounded-lg px-2 py-1.5 shadow-sm border cursor-pointer
+
+    ${
+        activeCard === `${zoneName}-${label}`
+            ? 'bg-cyan-500 border-cyan-600'
+            : 'bg-white/80 border-slate-200/60'
+    }
+`}
                         >
                             {/* Row 1: Icon + Name (side by side) */}
                             <div className="flex items-center gap-1.5 w-full justify-center">
@@ -383,14 +421,14 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete, onZonesSelected }) => {
                             </div>
 
                             {/* 2. Supporting Infrastructure (combined, excluding car-related) */}
-                            {hasCombinedInfra && (
+                            {/* {hasCombinedInfra && (
                                 <>
                                     <h4 className="text-sm font-bold uppercase text-slate-700 text-center">
                                         Supporting Infra (Combined)
                                     </h4>
                                     {renderSummaryCards(combinedInfra)}
                                 </>
-                            )}
+                            )} */}
 
                             {/* 3. Zone-wise Details */}
                             <hr className="border-slate-200" />
@@ -437,11 +475,21 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete, onZonesSelected }) => {
                                         </div>
 
                                         {/* Infrastructure cards (reuses renderSummaryCards) */}
-                                        {Object.keys(infraSummary).length > 0 ? (
+                                        {/* {Object.keys(infraSummary).length > 0 ? (
                                             renderSummaryCards(infraSummary)
                                         ) : (
                                             <p className="text-xs text-slate-400">No infrastructure data</p>
-                                        )}
+                                        )} */}
+                                        {Object.keys(infraSummary).length > 0 ? (
+    renderSummaryCards(
+        infraSummary,
+        zoneName
+    )
+) : (
+    <p className="text-xs text-slate-400">
+        No infrastructure data
+    </p>
+)}
                                     </div>
                                 )
                             })}

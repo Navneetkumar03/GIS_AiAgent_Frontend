@@ -113,11 +113,20 @@ export default function App() {
   const [showRoad, setShowRoad] = useState(false)
   const activeRoadRequestRef = useRef('')
   const analyzedRadiusRef = useRef(1)
+
+  const [cityWiseMode, setCityWiseMode] = useState(false)
+
+const [selectedZonePois, setSelectedZonePois] = useState([])
+
+const [selectedZoneCategory, setSelectedZoneCategory] = useState('')
   // for enabling and disabling the button 
   const SHOW_GRID_BUTTON = import.meta.env.VITE_SHOW_GRID_BUTTON === 'true'
 
   // for highlighting the zones in app2
   const [highlightedZones, setHighlightedZones] = useState([]);
+  useEffect(() => {
+  console.log("selectedZonePois", selectedZonePois.length)
+}, [selectedZonePois])
 
   function openContextualPanel(mode = 'panel') {
     setContextualMode(mode)
@@ -400,6 +409,28 @@ export default function App() {
     }
   }
 
+// function handleZoneCategorySelect(category, pois) {
+//   setCityWiseMode(true)
+//   setSelectedZoneCategory(category)
+//   setSelectedZonePois(pois)
+
+//   console.log("Category:", category)
+//   console.log("POIs:", pois)
+// }
+function handleZoneCategorySelect(
+    category,
+    pois,
+    zoneName
+) {
+
+    console.log("Zone:", zoneName)
+
+    setCityWiseMode(true)
+
+    setSelectedZoneCategory(category)
+
+    setSelectedZonePois(pois)
+}
 
   function addMessage(role, text) {
     setMessages(prev => [...prev, { role, text }])
@@ -560,6 +591,9 @@ export default function App() {
           onRadiusChange={setRadiusKm}
           // to higlight the zones over the map
           onHighlightZones={setHighlightedZones}
+          onHighlightZones={setHighlightedZones}
+        onCategorySelect={handleZoneCategorySelect}
+
         />
         {showChat && (
           <div className="relative z-30 h-full w-80 shrink-0">
@@ -666,6 +700,10 @@ export default function App() {
             selectedSubcategories={selectedSubcategories}
             // to highlight the zones over map for app2 
             highlightedZones={highlightedZones}
+
+              cityWiseMode={cityWiseMode}
+            selectedZonePois={selectedZonePois}
+             selectedZoneCategory={selectedZoneCategory}
           />
         </div>
 

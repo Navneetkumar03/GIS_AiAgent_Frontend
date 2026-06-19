@@ -42,7 +42,8 @@ export default function SidePanel({
     setShowGrid,
     showGrid,
     onRadiusChange,
-    onHighlightZones,   // ← new prop
+    onHighlightZones, 
+    onCategorySelect,  // ← new prop
 }) {
     const [showCityWiseAnalyse, setShowCityWiseAnalyse] = useState(false)
 
@@ -56,13 +57,14 @@ export default function SidePanel({
             className="side-panel-scrollbar flex w-80 shrink-0 flex-col gap-2 overflow-y-auto border-r border-white/40 bg-[#0f766e] p-2 backdrop-blur-md"
         >
             {showCityWiseAnalyse ? (
-                <CityWiseAnalyse
-                    onBack={() => {
-                        setShowCityWiseAnalyse(false);
-                        onHighlightZones([]);   // clear highlights
-                    }}
-                    onZonesSelected={onHighlightZones}
-                />
+               <CityWiseAnalyse
+    onBack={() => {
+        setShowCityWiseAnalyse(false);
+        onHighlightZones([]);
+    }}
+    onZonesSelected={onHighlightZones}
+    onCategorySelect={onCategorySelect}
+/>
             ) : (
                 <>
                     <SearchBar
