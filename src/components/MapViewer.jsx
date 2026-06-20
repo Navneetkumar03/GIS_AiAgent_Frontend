@@ -533,8 +533,10 @@ export default function MapViewer({
     selectedSubcategories = {},
     highlightedZones = [],
      cityWiseMode = false,
-  selectedZonePois = [],
-  selectedZoneCategory = '',   // new prop for zone highlighting
+     selectedZoneLayers = [],
+//   selectedZonePois = [],
+//   selectedZoneCategory = '',   // new prop for zone highlighting
+
 }) {
     const [categoryIcons, setCategoryIcons] = useState({})
     const [categoryList, setCategoryList] = useState([])
@@ -577,15 +579,6 @@ export default function MapViewer({
         }
     }, [])
 
-    useEffect(() => {
-    if (!selectedZonePois.length) return
-
-    console.log(
-        "First City POI:",
-        selectedZonePois[0]
-    )
-}, [selectedZonePois])
-
 function FitToCityPois({ pois }) {
 
     const map = useMap()
@@ -609,12 +602,12 @@ function FitToCityPois({ pois }) {
 
     return null
 }
-useEffect(() => {
-   console.log(
-      "MapViewer received:",
-      selectedZonePois?.length
-   )
-}, [selectedZonePois])
+// useEffect(() => {
+//    console.log(
+//       "MapViewer received:",
+//       selectedZonePois?.length
+//    )
+// }, [selectedZonePois])
     const activePoiKeys = poiData?.pois ? Object.keys(poiData.pois).map(normalizeKey) : []
     const legendItems = categoryList.length > 0
         ? categoryList.filter((item) => activePoiKeys.includes(item.key))
@@ -658,7 +651,7 @@ useEffect(() => {
 
                 <FitToDelhiBoundary hasSelectedLocation={Boolean(lat && lon)} />
                 <ConstrainToDelhiExtent />
-                <FitToCityPois pois={selectedZonePois} />
+                {/* <FitToCityPois pois={selectedZonePois} /> */}
 
                 {delhiBoundaryLatLngs.length > 0 && (
                     <>
@@ -724,7 +717,7 @@ useEffect(() => {
                     />
                 )}
 
-                {onMapClick && (
+                {onMapClick && !cityWiseMode && (
                     <MapClickHandler
                         onMapClick={onMapClick}
                         isAnalyzing={isAnalyzing}
@@ -804,7 +797,7 @@ useEffect(() => {
                 {showRoad && <RoadLayer roadData={roadData} />}
 
                 {/* CITY WISE POIs */}
-{cityWiseMode &&
+{/* {cityWiseMode &&
     selectedZonePois.slice(0, 1000).map((poi, index) => {
 
         if (!poi?.lat || !poi?.lon) return null
@@ -824,6 +817,53 @@ useEffect(() => {
                 </Popup>
             </Marker>
         )
+    })
+} */}
+{cityWiseMode &&
+    selectedZoneLayers.map(layer => {
+
+        const normalizedCategory =
+            normalizeKey(layer.category)
+
+        const iconHtml =
+            categoryIcons[normalizedCategory]
+
+        const icon =
+            createCategoryIcon(
+                layer.category,
+                iconHtml
+            )
+
+        return layer.pois
+            .slice(0,1000)
+            .map((poi,index) => {
+
+                if (!poi?.lat || !poi?.lon)
+                    return null
+
+                return (
+                    <Marker
+                        key={`${layer.zoneName}-${layer.category}-${index}`}
+                        position={[
+                            Number(poi.lat),
+                            Number(poi.lon)
+                        ]}
+                        icon={icon}
+                    >
+                        <Popup>
+                            <strong>
+                                {poi.name}
+                            </strong>
+                            <br />
+                            Zone:
+                            {layer.zoneName}
+                            <br />
+                            Category:
+                            {layer.category}
+                        </Popup>
+                    </Marker>
+                )
+            })
     })
 }
 

@@ -31,7 +31,8 @@ const CityWiseAnalyse = ({
     onBack,
     onAnalysisComplete,
     onZonesSelected,
-    onCategorySelect
+    onCategorySelect,
+selectedZoneLayers
 }) => {
     const dropdownItems = ['Select city', 'Delhi']
     const [selectedItem, setSelectedItem] = useState(dropdownItems[0])
@@ -204,6 +205,12 @@ function handleCategoryClick(zoneName, category) {
         return (
             <div className="grid grid-cols-2 gap-1.5">
                 {entries.map(([label, count]) => {
+                    const isActive =
+    selectedZoneLayers.some(
+        item =>
+            item.zoneName === zoneName &&
+            item.category === label
+    )
                     const normalizedLabel = normalizeKey(label)
                     const icon = iconMap[normalizedLabel] || ''
 
@@ -215,11 +222,11 @@ function handleCategoryClick(zoneName, category) {
     flex flex-col items-center justify-center
     rounded-lg px-2 py-1.5 shadow-sm border cursor-pointer
 
-    ${
-        activeCard === `${zoneName}-${label}`
-            ? 'bg-cyan-500 border-cyan-600'
-            : 'bg-white/80 border-slate-200/60'
-    }
+   ${
+    isActive
+        ? 'bg-cyan-500 border-cyan-600'
+        : 'bg-white/80 border-slate-200/60'
+}
 `}
                         >
                             {/* Row 1: Icon + Name (side by side) */}

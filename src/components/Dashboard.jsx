@@ -14,7 +14,7 @@ import {
 import { useState, useEffect } from 'react';
 import { fetchDashboardCategories, fetchCategoriesCount } from '../services/api';
 
-export default function Dashboard({ locationName, summary, lat, lon, radiusKm, onDownload, onItemClick, onSelectionChange }) {
+export default function Dashboard({ lat, lon, radiusKm,  onItemClick, onSelectionChange }) {
     const [categories, setCategories] = useState([]);
     const [selectedCategories, setSelectedCategories] = useState([]);
 
