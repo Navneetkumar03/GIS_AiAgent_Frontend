@@ -297,21 +297,44 @@ function handleCategoryClick(zoneName, category) {
     return (
         <div className="rounded-xl bg-white/72 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
             {/* Header */}
-            <div className="mb-2 flex items-center justify-between gap-3">
-                <h3 className="text-lg font-bold uppercase text-slate-900">City Wise Analyse</h3>
-                <div className="group relative inline-block">
-                    <button
-                        type="button"
-                        onClick={onBack}
-                        className="rounded-full bg-cyan-300 p-1 text-sm font-semibold text-white transition hover:bg-cyan-700"
-                    >
-                        <img src={targetIcon} alt="Back" className="h-6 w-6" />
-                    </button>
-                    <span className="pointer-events-none absolute top-4 right-2 mt-3 rounded bg-gray-800 px-2 py-1 text-xs text-white whitespace-nowrap scale-95 opacity-0 transition-all duration-150 group-hover:scale-100 group-hover:opacity-100">
-                        Explore by location
-                    </span>
-                </div>
-            </div>
+<div className="mb-1 flex items-center justify-between">
+    <div className="flex h-3 w-3 min-h-[1.5rem] min-w-[1.5rem] items-center justify-center rounded-full bg-slate-900 text-white shadow-lg shadow-slate-900/15">
+       <img
+    src={targetIcon}
+    alt="City Wise Analyse"
+    className="h-5 w-5 brightness-0 invert"
+/>
+    </div>
+
+    <div>
+        <h3 className="font-bold uppercase text-slate-900">
+            City Wise Analyse
+        </h3>
+    </div>
+
+    <div className="group relative inline-block">
+      <button
+    type="button"
+    onClick={onBack}
+    className="group rounded-full bg-cyan-300 p-1 text-sm font-semibold text-white transition hover:bg-cyan-700"
+>
+    <img
+        src={targetIcon}
+        alt="Back"
+        className="h-6 w-6 transition-all duration-200 group-hover:brightness-0 group-hover:invert"
+    />
+</button>
+
+        <span
+            className="pointer-events-none absolute top-4 right-2 mt-3 rounded
+                       bg-gray-800 px-2 py-1 text-xs text-white whitespace-nowrap
+                       scale-95 opacity-0 transition-all duration-150
+                       group-hover:scale-100 group-hover:opacity-100"
+        >
+            Explore by location
+        </span>
+    </div>
+</div>
 
             {/* City dropdown */}
             <div className="mt-4">
@@ -371,7 +394,7 @@ function handleCategoryClick(zoneName, category) {
                                                 type="checkbox"
                                                 checked={checked}
                                                 onChange={() => handleZoneToggle(value)}
-                                                className="h-3.5 w-3.5 accent-blue-600"
+                                                className="h-3.5 w-3.5 accent-[#bcd9d7]"
                                             />
                                             {label}
                                         </label>
@@ -392,7 +415,7 @@ function handleCategoryClick(zoneName, category) {
                         <button
                             onClick={handleAnalyze}
                             disabled={selectedZones.size === 0 || isAnalyzing}
-                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/40 transition-all duration-200 hover:shadow-xl hover:shadow-blue-600/50 disabled:cursor-not-allowed disabled:from-[#87aacf] disabled:to-[#3d88d8] disabled:shadow-none disabled:opacity-60"
+                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0f766e] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/40 transition-all duration-200 hover:shadow-xl hover:shadow-blue-600/50 disabled:cursor-not-allowed disabled:from-[#87aacf] disabled:to-[#3d88d8] disabled:shadow-none disabled:opacity-60"
                         >
                             <SparklesIcon className="h-5 w-5" />
                             <span>{isAnalyzing ? 'Analyzing...' : 'Analyze Selected Zones'}</span>
@@ -442,64 +465,203 @@ function handleCategoryClick(zoneName, category) {
                             <h4 className="text-sm font-bold uppercase text-slate-700 text-center">
                                 Zone wise Details
                             </h4>
+{zones.map((zone, idx) => {
 
-                            {zones.map((zone, idx) => {
-                                const zoneName = zone.zone || `Zone ${idx + 1}`
-                                const showroomCount = getShowroomCount(zone.summary)
-                                const regCount = getTotalRegistrations(zone.vehicle_registration_summary)
-                                const infraSummary = excludeShowroom(zone.summary)
+    const zoneName =
+        zone.zone || `Zone ${idx + 1}`
 
-                                return (
-                                    <div key={zoneName} className="rounded-xl bg-white/80 p-3 shadow-sm border border-slate-200/60">
-                                        {/* Zone Name */}
-                                        <h5 className="font-bold text-slate-800 text-lg mb-2 text-center">
-                                            {zoneName}
-                                        </h5>
+    const showroomCount =
+        getShowroomCount(zone.summary)
 
-                                        {/* Stats Cards */}
-                                        <div className="grid grid-cols-2 gap-1 mb-3">
-                                            {showroomCount > 0 && (
-                                                <div className="bg-cyan-100 rounded-xl px-3 py-2 flex flex-col items-center">
-                                                    <span className="text-[9px] font-medium text-cyan-700 uppercase">
-                                                        Total Car Dealers
-                                                    </span>
-                                                    <span className="text-lg font-bold text-cyan-900">
-                                                        {showroomCount}
-                                                    </span>
-                                                </div>
-                                            )}
+    const regCount =
+        getTotalRegistrations(
+            zone.vehicle_registration_summary
+        )
 
-                                            {regCount > 0 && (
-                                                <div className="bg-blue-100 rounded-xl px-3 py-2 flex flex-col items-center">
-                                                    <span className="text-[9px] font-medium text-blue-700 uppercase">
-                                                        Total Registrations
-                                                    </span>
-                                                    <span className="text-lg font-bold text-blue-900">
-                                                        {regCount.toLocaleString()}
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
+    const infraSummary =
+        excludeShowroom(zone.summary)
 
-                                        {/* Infrastructure cards (reuses renderSummaryCards) */}
-                                        {/* {Object.keys(infraSummary).length > 0 ? (
-                                            renderSummaryCards(infraSummary)
-                                        ) : (
-                                            <p className="text-xs text-slate-400">No infrastructure data</p>
-                                        )} */}
-                                        {Object.keys(infraSummary).length > 0 ? (
-    renderSummaryCards(
-        infraSummary,
-        zoneName
-    )
-) : (
-    <p className="text-xs text-slate-400">
-        No infrastructure data
-    </p>
+    const isShowroomActive =
+        selectedZoneLayers.some(
+            item =>
+                item.zoneName === zoneName &&
+                item.category === "Car Showroom"
+        )
+const showroomIcon =
+    iconMap["carshowroom"] || ""
+    return (
+        <div
+            key={zoneName}
+            className="rounded-xl bg-white/80 p-3 shadow-sm border border-slate-200/60"
+        >
+
+            {/* Zone Name */}
+            <h5 className="font-bold text-slate-800 text-lg mb-2 text-center">
+                {zoneName}
+            </h5>
+
+            {/* Total Registration Full Width */}
+            {regCount > 0 && (
+                <div className="mb-2 bg-blue-100 rounded-xl px-3 py-2 flex flex-col items-center">
+                    <span className="text-[9px] font-medium text-blue-700 uppercase">
+                        Total Registrations
+                    </span>
+
+                    <span className="text-lg font-bold text-blue-900">
+                        {regCount.toLocaleString()}
+                    </span>
+                </div>
+            )}
+
+            {/* All Cards Grid */}
+            <div className="grid grid-cols-2 gap-1.5">
+
+                {/* Car Dealers Card */}
+             {showroomCount > 0 && (
+    <div
+        onClick={() =>
+            handleCategoryClick(
+                zoneName,
+                "Car Showroom"
+            )
+        }
+        className={`
+            flex flex-col items-center justify-center
+            rounded-lg px-2 py-1.5 shadow-sm border cursor-pointer
+
+            ${
+                isShowroomActive
+                    ? 'bg-[#14b8a6] border-cyan-600 text-white'
+                    : 'bg-white/80 border-slate-200/60'
+            }
+        `}
+    >
+
+        <div className="flex items-center gap-1.5">
+
+            {showroomIcon && (
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-50 overflow-hidden">
+                    <div
+                        className="h-full w-full flex items-center justify-center"
+                        dangerouslySetInnerHTML={{
+                            __html: showroomIcon
+                        }}
+                    />
+                </span>
+            )}
+
+            <span
+                className={`text-[9px] font-semibold uppercase ${
+                    isShowroomActive
+                        ? 'text-white'
+                        : 'text-cyan-700'
+                }`}
+            >
+                Total Car Dealers
+            </span>
+        </div>
+
+        <span
+            className={`text-sm font-bold ${
+                isShowroomActive
+                    ? 'text-white'
+                    : 'text-cyan-900'
+            }`}
+        >
+            {showroomCount}
+        </span>
+
+    </div>
 )}
-                                    </div>
-                                )
-                            })}
+
+                {/* Infrastructure Cards */}
+                {Object.entries(infraSummary).map(
+                    ([label, count]) => {
+
+                        const isActive =
+                            selectedZoneLayers.some(
+                                item =>
+                                    item.zoneName === zoneName &&
+                                    item.category === label
+                            )
+
+                        const normalizedLabel =
+                            normalizeKey(label)
+
+                        const icon =
+                            iconMap[normalizedLabel] || ''
+
+                        return (
+                            <div
+                                key={label}
+                                onClick={() =>
+                                    handleCategoryClick(
+                                        zoneName,
+                                        label
+                                    )
+                                }
+                                className={`
+                                    flex flex-col items-center justify-center
+                                    rounded-lg px-2 py-1.5 shadow-sm border cursor-pointer
+
+                                    ${
+                                        isActive
+                                            ? 'bg-[#14b8a6] border-cyan-600 text-white'
+                                            : 'bg-white/80 border-slate-200/60'
+                                    }
+                                `}
+                            >
+                                <div className="flex items-center gap-1.5 w-full justify-center">
+
+                                    {icon && (
+                                        <span
+                                            className={`
+                                                flex h-5 w-5 shrink-0 items-center justify-center rounded-full overflow-hidden
+                                                ${
+                                                    isActive
+                                                        ? 'bg-white/20'
+                                                        : 'bg-blue-50'
+                                                }
+                                            `}
+                                        >
+                                            <div
+                                                className="h-full w-full flex items-center justify-center"
+                                                dangerouslySetInnerHTML={{
+                                                    __html: icon
+                                                }}
+                                            />
+                                        </span>
+                                    )}
+
+                                    <span
+                                        className={`text-[9px] font-semibold uppercase break-words leading-tight ${
+                                            isActive
+                                                ? 'text-white'
+                                                : 'text-slate-600'
+                                        }`}
+                                    >
+                                        {label}
+                                    </span>
+                                </div>
+
+                                <span
+                                    className={`text-sm font-bold leading-tight ${
+                                        isActive
+                                            ? 'text-white'
+                                            : 'text-cyan-700'
+                                    }`}
+                                >
+                                    {count}
+                                </span>
+                            </div>
+                        )
+                    }
+                )}
+            </div>
+
+        </div>
+    )
+})}
 
                         </div>
                     )}

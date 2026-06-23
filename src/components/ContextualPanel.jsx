@@ -21,6 +21,15 @@ const ContextualPanel = ({
   const [subcategoryError, setSubcategoryError] = useState('')
 
   useEffect(() => {
+    console.log(
+    "ContextualPanel poiData:",
+    poiData
+)
+
+console.log(
+    "ContextualPanel selectedCategories:",
+    selectedCategories
+)
     if (mode !== 'panel') return
 
     if (!selectedCategories.length) {

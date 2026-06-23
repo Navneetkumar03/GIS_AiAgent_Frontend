@@ -519,6 +519,7 @@ function LegendControl({ legendItems, selectedCategories, onToggleCategory, onRe
 
     return null;
 }
+
 export default function MapViewer({
     lat, lon, radiusKm, poiData,
     suggestions,
@@ -819,7 +820,7 @@ function FitToCityPois({ pois }) {
         )
     })
 } */}
-{cityWiseMode &&
+{/* {cityWiseMode &&
     selectedZoneLayers.map(layer => {
 
         const normalizedCategory =
@@ -860,6 +861,102 @@ function FitToCityPois({ pois }) {
                             <br />
                             Category:
                             {layer.category}
+                        </Popup>
+                    </Marker>
+                )
+            })
+    })
+} */}
+{cityWiseMode &&
+    selectedZoneLayers.map(layer => {
+
+        const normalizedCategory =
+            normalizeKey(layer.category)
+
+        const activeSubcategories =
+            selectedSubcategories[
+                normalizedCategory
+            ] || []
+
+        const visiblePois =
+            activeSubcategories.length > 0
+                ? layer.pois.filter(
+                    poi =>
+                        activeSubcategories.includes(
+                            poi.sub_category || "Unknown"
+                        )
+                )
+                : layer.pois
+                console.log(
+    "Total POIs:",
+    visiblePois.length
+)
+
+const uniqueCoords = new Set(
+    visiblePois.map(
+        poi => `${poi.lat}-${poi.lon}`
+    )
+)
+
+console.log(
+    "Unique Coordinates:",
+    uniqueCoords.size
+)
+    console.log(
+            "Category:",
+            layer.category
+        )
+
+        console.log(
+            "Selected Subcategories:",
+            activeSubcategories
+        )
+
+        console.log(
+            "Visible POIs:",
+            visiblePois.length
+        )
+        const iconHtml =
+            categoryIcons[normalizedCategory]
+
+        const icon =
+            createCategoryIcon(
+                layer.category,
+                iconHtml
+            )
+
+        return visiblePois
+            .slice(0, 1000)
+            .map((poi, index) => {
+
+                if (!poi?.lat || !poi?.lon)
+                    
+                      console.log(
+        "Missing Lat/Lon:",
+        poi.name,
+        poi.lat,
+        poi.lon
+    )
+
+                return (
+                    <Marker
+                        key={`${layer.zoneName}-${layer.category}-${index}`}
+                        position={[
+                            Number(poi.lat),
+                            Number(poi.lon)
+                        ]}
+                        icon={icon}
+                    >
+                        <Popup>
+                            <strong>
+                                {poi.name}
+                            </strong>
+                            <br />
+                            Zone: {layer.zoneName}
+                            <br />
+                            Category: {layer.category}
+                            <br />
+                            Sub Category: {poi.sub_category}
                         </Popup>
                     </Marker>
                 )

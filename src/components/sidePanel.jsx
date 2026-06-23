@@ -5,12 +5,12 @@ import CityWiseAnalyse from "./CityWiseAnalyse";
 import { DownloadIcon } from './Icons'
 import './sidePanel.css'
 
-function normalizeKey(value) {
-    return String(value || '')
-        .trim()
-        .toLowerCase()
-        .replace(/[_\s-]+/g, '')
-}
+// function normalizeKey(value) {
+//     return String(value || '')
+//         .trim()
+//         .toLowerCase()
+//         .replace(/[_\s-]+/g, '')
+// }
 
 export default function SidePanel({
     lat,
@@ -32,7 +32,8 @@ export default function SidePanel({
     onHighlightZones, 
     onCategorySelect,  // ← new prop
     selectedZoneLayers,
-    setCityWiseMode
+    setCityWiseMode, 
+    setCityWisePoiData
 }) {
     const [showCityWiseAnalyse, setShowCityWiseAnalyse] = useState(false)
 
@@ -52,6 +53,7 @@ export default function SidePanel({
         setShowCityWiseAnalyse(false);
           setCityWiseMode(false)
         onHighlightZones([]);
+        setCityWisePoiData?.(null)
     }}
     onZonesSelected={onHighlightZones}
     onCategorySelect={onCategorySelect}

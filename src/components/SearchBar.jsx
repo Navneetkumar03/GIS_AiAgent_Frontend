@@ -81,31 +81,37 @@ export default function SearchBar({
                 </p>
             </div> */}
             <div className='ml-3 mb-2'>
-                <div className="mb-1 flex  items-center gap-2">
-                    <div className="flex h-3 w-3 min-h-[1.5rem] min-w-[1.5rem] items-center justify-center rounded-full bg-slate-900 text-white shadow-lg shadow-slate-900/15">
-                        <TargetIcon className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold uppercase text-slate-900">
-                            Search Location
-                        </h3>
-                    </div>
-                    <div className="group relative inline-block">
-                        <button
-                            type="button"
-                            onClick={onShowCityWiseAnalyse}
-                            className="rounded-full bg-cyan-300 p-1 text-sm font-semibold text-white transition hover:bg-cyan-700">
-                            <img src={carIcon} alt="Back" className="h-6 w-6" />
-                        </button>
-                        <span
-                            className="pointer-events-none absolute top-4 right-2 mt-3 rounded
-                                          bg-gray-800 px-2 py-1 text-xs text-white whitespace-nowrap
-                                          scale-95 opacity-0 transition-all duration-150
-                                          group-hover:scale-100 group-hover:opacity-100">
-                            Car Showroom
-                        </span>
-                    </div>
-                </div>
+            <div className="mb-1 flex items-center justify-between">
+    <div className="flex h-3 w-3 min-h-[1.5rem] min-w-[1.5rem] items-center justify-center rounded-full bg-slate-900 text-white shadow-lg shadow-slate-900/15">
+        <TargetIcon className="h-5 w-5" />
+    </div>
+
+    <div>
+        <h3 className="font-bold uppercase text-slate-900">
+            Search Location
+        </h3>
+    </div>
+
+   <div className="group/car relative inline-block">
+    <button
+        type="button"
+        onClick={onShowCityWiseAnalyse}
+        className="rounded-full bg-cyan-300 p-1 transition hover:bg-cyan-700"
+    >
+        <img
+            src={carIcon}
+            alt="Back"
+            className="h-6 w-6 transition-all duration-200 group-hover/car:brightness-0 group-hover/car:invert"
+        />
+    </button>
+
+    <span
+        className="pointer-events-none absolute top-4 right-2 mt-3 rounded bg-gray-800 px-2 py-1 text-xs text-white whitespace-nowrap scale-95 opacity-0 transition-all duration-150 group-hover/car:scale-100 group-hover/car:opacity-100"
+    >
+        Car Showroom
+    </span>
+</div>
+</div>
                 <p className="text-xs text-slate-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                     Pick a place, radius, and start the analysis.
                 </p>
@@ -212,7 +218,7 @@ export default function SearchBar({
                     onAnalyze()
                 }}
                 disabled={!locationFound || isAnalyzing}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/40 transition-all duration-200 hover:shadow-xl hover:shadow-blue-600/50  disabled:cursor-not-allowed disabled:from-[#87aacf] disabled:to-[#3d88d8] disabled:shadow-none disabled:opacity-60"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0f766e] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/40 transition-all duration-200 hover:shadow-xl hover:shadow-blue-600/50  disabled:cursor-not-allowed disabled:from-[#87aacf] disabled:to-[#3d88d8] disabled:shadow-none disabled:opacity-60"
             >
                 <SparklesIcon className="h-5 w-5" />
                 <span>

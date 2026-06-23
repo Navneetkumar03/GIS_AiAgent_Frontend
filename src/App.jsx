@@ -125,9 +125,7 @@ const [selectedZoneLayers, setSelectedZoneLayers] = useState([])
 
   // for highlighting the zones in app2
   const [highlightedZones, setHighlightedZones] = useState([]);
-//   useEffect(() => {
-//   console.log("selectedZonePois", selectedZonePois.length)
-// }, [selectedZonePois])
+const [cityWisePoiData, setCityWisePoiData] =useState(null)
 
   function openContextualPanel(mode = 'panel') {
     setContextualMode(mode)
@@ -437,7 +435,7 @@ useEffect(() => {
 function handleZoneCategorySelect(
     category,
     pois,
-    zoneName
+    zoneName,
 ) {
     setCityWiseMode(true)
 
@@ -455,7 +453,52 @@ function handleZoneCategorySelect(
     //         pois
     //     }
     // ])
+const summary = {}
 
+pois.forEach(poi => {
+
+    const sub =
+        poi.sub_category || "Unknown"
+
+    summary[sub] =
+        (summary[sub] || 0) + 1
+})
+
+setCityWisePoiData(prev => ({
+
+    pois: {
+        ...(prev?.pois || {}),
+        [category]: pois
+    },
+
+    summary: {
+        ...(prev?.summary || {}),
+        [category]: summary
+    }
+
+}))
+const categoryKey =
+    normalizeKey(category)
+
+setSelectedCategories(prev => {
+      console.log(
+        "Before:",
+        prev
+    )
+
+    if (prev.includes(categoryKey)) {
+
+        return prev.filter(
+            item => item !== categoryKey
+        )
+    }
+
+    return [
+        ...prev,
+        categoryKey
+    ]
+})
+openContextualPanel('panel')
     setSelectedZoneLayers(prev => {
 
     const exists = prev.find(
@@ -464,15 +507,44 @@ function handleZoneCategorySelect(
             item.category === category
     )
 
+    // if (exists) {
+    //     return prev.filter(
+    //         item =>
+    //             !(
+    //                 item.zoneName === zoneName &&
+    //                 item.category === category
+    //             )
+    //     )
+    // }
     if (exists) {
-        return prev.filter(
-            item =>
-                !(
-                    item.zoneName === zoneName &&
-                    item.category === category
-                )
-        )
-    }
+
+    setCityWisePoiData(prevData => {
+
+        const nextPois = {
+            ...(prevData?.pois || {})
+        }
+
+        const nextSummary = {
+            ...(prevData?.summary || {})
+        }
+
+        delete nextPois[category]
+        delete nextSummary[category]
+
+        return {
+            pois: nextPois,
+            summary: nextSummary
+        }
+    })
+
+    return prev.filter(
+        item =>
+            !(
+                item.zoneName === zoneName &&
+                item.category === category
+            )
+    )
+}
 
     return [
         ...prev,
@@ -648,6 +720,7 @@ function handleZoneCategorySelect(
         onCategorySelect={handleZoneCategorySelect}
           selectedZoneLayers={selectedZoneLayers}
           setCityWiseMode={setCityWiseMode}
+           setCityWisePoiData={setCityWisePoiData}
 
         />
         {showChat && (
@@ -664,7 +737,11 @@ function handleZoneCategorySelect(
               onSend={handleContextualChat}
               isChatSearching={isChatSearching}
               isReady={isAnalyzed}
-              poiData={poiData}
+    poiData={
+    cityWiseMode
+        ? cityWisePoiData
+        : poiData
+}
             />
           </div>
         )}
@@ -771,14 +848,12 @@ function handleZoneCategorySelect(
 }
 
 /**
- Fixed City Wise Analysis POI plotting on the Leaflet map
-Integrated category-wise POI display when clicking infrastructure cards
-Added SVG category icons for City Wise Analysis markers (same as Search Analysis markers)
-Implemented zone highlighting using GeoJSON polygons on the map.
-Added support for displaying POIs from selected zones with custom category icons
-Created selectedZoneLayers state structure to manage zone-wise category selections independently
-Fixed issue where selecting a category in one zone removed markers from previously selected zones
-Implemented multi-zone POI layer accumulation logic so markers remain visible across zones
-Added active card selection logic for Zone Wise Details cards
-Added City Wise mode handling and started restricting map click/search-circle behavior while City Wise Analysis is active
+Added Car Showroom category click functionality to show POIs on the map
+Updated Zone Wise Details cards to be clickable and connected with map data
+Added subcategory filtering support in the Contextual Panel
+Fixed map markers to display only selected subcategory data
+Implemented map layer clearing when switching between Search Analysis and City Wise Analysis
+Added active card highlighting for selected subcategory
+Investigated and verified duplicate location coordinates affecting marker visibility
  */
+
