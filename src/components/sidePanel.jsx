@@ -42,10 +42,12 @@ export default function SidePanel({
     setShowGrid,
     showGrid,
     onRadiusChange,
-    onHighlightZones,   // ← new prop
+    onHighlightZones,
+    showCityWiseAnalyse,
+    setShowCityWiseAnalyse,
+    onApp2SessionReady,
+    onApp2DataReady,
 }) {
-    const [showCityWiseAnalyse, setShowCityWiseAnalyse] = useState(false)
-
     function handleShowCityWiseAnalyse() {
         onClearSearch?.()
         setShowCityWiseAnalyse(true)
@@ -59,9 +61,12 @@ export default function SidePanel({
                 <CityWiseAnalyse
                     onBack={() => {
                         setShowCityWiseAnalyse(false);
-                        onHighlightZones([]);   // clear highlights
+                        onHighlightZones([]);
+                        onApp2SessionReady?.(null);
                     }}
                     onZonesSelected={onHighlightZones}
+                    onApp2SessionReady={onApp2SessionReady}
+                    onAnalysisComplete={onApp2DataReady}
                 />
             ) : (
                 <>
@@ -94,7 +99,8 @@ export default function SidePanel({
                             <div className="flex w-full items-center justify-center gap-1 rounded-2xl bg-white/72 py-2 text-sm font-semibold text-slate-900 transition hover:bg-[#14b8a6] hover:text-white hover:border hover:border-white">
                                 <button
                                     onClick={onDownload}
-                                    className="flex gap-2 items-center justify-center">
+                                    className="flex gap-2 items-center justify-center"
+                                >
                                     <span className="flex items-center justify-center h-5 w-5 rounded-full bg-black text-white">
                                         <DownloadIcon className="h-4 w-4" />
                                     </span>
@@ -110,8 +116,6 @@ export default function SidePanel({
         </div>
     )
 }
-
-
 
 
 

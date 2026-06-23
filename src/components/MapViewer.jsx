@@ -762,16 +762,9 @@ export default function MapViewer({
                                 highlightedZones.includes(f.properties.DIST_CENS)
                             )
                         }}
-                        // style={() => ({
-                        //     color: '#2563eb',
-                        //     weight: 3,
-                        //     opacity: 0.9,
-                        //     fillColor: '#93c5fd',
-                        //     fillOpacity: 0.25,
-                        // })}
                         style={(feature) => {
                             // Use a palette based on zone name or index
-                            const colors = ['#f97316', '#8b5cf6', '#10b981', '#3b82f6', '#ef4444'];
+                            const colors = ['#a616f9', '#10b981', '#6b5cf6', '#3bf6e3', '#ef4444'];
                             const idx = highlightedZones.indexOf(feature.properties.DIST_CENS);
                             const color = colors[idx % colors.length];
                             return {

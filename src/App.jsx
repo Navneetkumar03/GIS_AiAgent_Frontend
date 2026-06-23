@@ -9,7 +9,8 @@ import {
   analyzeLocation,
   chatWithAgent,
   exportPDF,
-  reverseGeocode
+  reverseGeocode,
+  chatApp2LLM,   // 👈 imported for App2 chat
 } from './services/api'
 import ContextualPanel from './components/ContextualPanel'
 import { isWithinDelhiBoundary } from './utils/delhiBoundary'
@@ -105,7 +106,7 @@ export default function App() {
   const [selectedSubcategories, setSelectedSubcategories] = useState({})
   const [roadSummary, setRoadSummary] = useState({})
 
-  // to show grid over map 
+  // Grid and road state
   const [gridData, setGridData] = useState([])
   const [roadData, setRoadData] = useState([])
   const [roadDataKey, setRoadDataKey] = useState('')
@@ -113,11 +114,13 @@ export default function App() {
   const [showRoad, setShowRoad] = useState(false)
   const activeRoadRequestRef = useRef('')
   const analyzedRadiusRef = useRef(1)
-  // for enabling and disabling the button 
   const SHOW_GRID_BUTTON = import.meta.env.VITE_SHOW_GRID_BUTTON === 'true'
 
-  // for highlighting the zones in app2
-  const [highlightedZones, setHighlightedZones] = useState([]);
+  // App2 state
+  const [highlightedZones, setHighlightedZones] = useState([])
+  const [showCityWiseAnalyse, setShowCityWiseAnalyse] = useState(false)
+  const [app2SessionId, setApp2SessionId] = useState(null)
+  const [app2ZoneData, setApp2ZoneData] = useState(null)   // 👈 NEW
 
   function openContextualPanel(mode = 'panel') {
     setContextualMode(mode)
@@ -174,7 +177,7 @@ export default function App() {
         return false
       }
 
-      // If inside → proceed normally
+      // Reset everything for App1
       setLat(lat)
       setLon(lon)
       setLocationName(data.place_name)
@@ -190,6 +193,12 @@ export default function App() {
       setSelectedSubcategories({})
       setRoadSummary({})
 
+      // Also reset App2 state
+      setShowCityWiseAnalyse(false)
+      setApp2SessionId(null)
+      setHighlightedZones([])
+      setApp2ZoneData(null)   // 👈 NEW
+
       setStatus(`Found: ${data.place_name} Inside boundary`)
       return true
     } catch (err) {
@@ -197,63 +206,6 @@ export default function App() {
       return false
     }
   }
-
-
-
-  // async function handleSearch(query, radius) {
-  //   setStatus('Searching...')
-  //   setRadiusKm(radius)
-
-  //   try {
-  //     const data = await searchLocation(query)
-
-  //     let lat = data?.lat
-  //     let lon = data?.lon
-
-  //     const isInside = isWithinDelhiBoundary(lat, lon)
-
-  //     if (!isInside) {
-  //       setStatus('Location is outside allowed boundary ')
-  //       return false
-  //     }
-
-  //     // Reset previous analysis state
-  //     setLat(lat)
-  //     setLon(lon)
-  //     setLocationName(data.place_name)
-
-  //     setPoiData(null)
-  //     setSummary({})
-  //     setRoadSummary({})
-
-  //     setIsAnalyzed(false)
-  //     setIsAnalyzing(false)
-
-  //     setSuggestions([])
-  //     setSessionId(null)
-  //     setMessages([])
-
-  //     setShowChat(false)
-  //     setContextualMode('panel')
-
-  //     setSelectedCategories([])
-  //     setSelectedSubcategories({})
-
-  //     // IMPORTANT RESETS
-  //     setGridData([])
-  //     setRoadData([])
-
-  //     setShowGrid(false)
-  //     setShowRoad(false)
-
-  //     setStatus(`Found: ${data.place_name} Inside boundary`)
-  //     return true
-
-  //   } catch (err) {
-  //     setStatus('Location not found')
-  //     return false
-  //   }
-  // }
 
   function handleClearSearch() {
     setLat(null)
@@ -274,16 +226,21 @@ export default function App() {
     resetRoadLayer()
     setRadiusKm(1)
     setStatus('Ready')
+
+    // Reset App2 state
+    setShowCityWiseAnalyse(false)
+    setApp2SessionId(null)
+    setHighlightedZones([])
+    setApp2ZoneData(null)   // 👈 NEW
   }
 
   async function handleAnalyze(radius = radiusKm) {
     if (!lat || !lon) return
     const analysisRadius = radius
     setRadiusKm(analysisRadius)
-    analyzedRadiusRef.current = analysisRadius  // ← ADD THIS ONE LINE
+    analyzedRadiusRef.current = analysisRadius
     resetRoadLayer()
 
-    // ← ADD THESE THREE LINES
     setSelectedSubcategories({})
     setSelectedCategories([])
     setShowChat(false)
@@ -299,8 +256,7 @@ export default function App() {
       setRoadSummary(pois.road_summary ?? {})
       setSelectedCategories(Object.keys(pois.pois || {}).map(normalizeKey))
       setSelectedSubcategories({})
-      // to show the grid layer over the map
-      setGridData(pois.grids ?? [])   // ← add this
+      setGridData(pois.grids ?? [])
 
       setStatus('Storing data and building spatial grid...')
       const analyzeResult = await analyzeLocation(
@@ -327,20 +283,6 @@ export default function App() {
     }
   }
 
-  // async function handleDownload() {
-  //   if (!isAnalyzed) return
-  //   try {
-  //     const blob = await exportPDF(locationName, lat, lon, radiusKm, summary)
-  //     const url = URL.createObjectURL(blob)
-  //     const a = document.createElement('a')
-  //     a.href = url
-  //     a.download = 'site_report.pdf'
-  //     a.click()
-  //     URL.revokeObjectURL(url)
-  //   } catch {
-  //     alert('PDF failed.')
-  //   }
-  // }
   async function handleDownload() {
     if (!isAnalyzed) return
     try {
@@ -351,7 +293,7 @@ export default function App() {
         radiusKm,
         summary,
         roadSummary,
-        suggestions     // ← already exists as state
+        suggestions
       )
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -373,7 +315,6 @@ export default function App() {
     }
 
     try {
-      // const currentRoadDataKey = getRoadDataKey()
       const currentRoadDataKey = getRoadDataKey(lat, lon, analyzedRadiusRef.current)
       const hasRoadData = Array.isArray(roadData)
         ? roadData.length > 0
@@ -382,7 +323,6 @@ export default function App() {
       if (!hasRoadData || roadDataKey !== currentRoadDataKey) {
         setStatus('Fetching road data...')
         activeRoadRequestRef.current = currentRoadDataKey
-        // const roads = await fetchRoads(lat, lon, radiusKm)
         const roads = await fetchRoads(lat, lon, analyzedRadiusRef.current)
 
         if (activeRoadRequestRef.current !== currentRoadDataKey) return
@@ -400,11 +340,11 @@ export default function App() {
     }
   }
 
-
   function addMessage(role, text) {
     setMessages(prev => [...prev, { role, text }])
   }
 
+  // ── App1 chat handler ──
   async function handleContextualChat(message) {
     if (isChatSearching) return
 
@@ -413,6 +353,30 @@ export default function App() {
 
     try {
       const response = await chatWithAgent(message, sessionId)
+      addMessage('ai', response?.response || 'No response received.')
+      setSuggestions(Array.isArray(response?.suggestions) ? response.suggestions : [])
+    } catch (error) {
+      console.error(error)
+      addMessage('ai', error.message || 'Error. Please try again.')
+    } finally {
+      setIsChatSearching(false)
+    }
+  }
+
+  // ── App2 chat handler ──
+  async function handleApp2Chat(message) {
+    if (isChatSearching) return
+
+    if (!app2SessionId) {
+      addMessage('ai', 'Please analyse zones first.')
+      return
+    }
+
+    addMessage('user', message)
+    setIsChatSearching(true)
+
+    try {
+      const response = await chatApp2LLM(message, app2SessionId)
       addMessage('ai', response?.response || 'No response received.')
       setSuggestions(Array.isArray(response?.suggestions) ? response.suggestions : [])
     } catch (error) {
@@ -453,17 +417,19 @@ export default function App() {
     }
   }
 
-
   const statusTone = status === 'Ready'
     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
     : status.startsWith('Failed')
       ? 'bg-rose-50 text-rose-700 border-rose-200'
       : 'bg-cyan-50 text-cyan-700 border-cyan-200'
 
+  // Determine which chat handler to use
+  const chatHandler = showCityWiseAnalyse ? handleApp2Chat : handleContextualChat
+  const chatReady = showCityWiseAnalyse ? !!app2SessionId : isAnalyzed
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.2),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(20,184,166,0.18),_transparent_24%),linear-gradient(180deg,_#f8fafc_0%,_#e2e8f0_100%)] text-slate-900">
       <nav className="flex h-20 items-center justify-between bg-[#F9F8F6] border-b border-cyan-200 px-6 shadow-sm flex-shrink-0">
-        {/* Left Section */}
         <div className="flex items-center gap-4">
           <div className="relative">
             <img
@@ -472,7 +438,6 @@ export default function App() {
               alt="Logo"
             />
           </div>
-
           <div>
             <p
               className="m-0 mb-[5px] text-[28px] leading-none font-montserrat font-bold uppercase "
@@ -484,18 +449,14 @@ export default function App() {
               Locate <span className="mx-2">&gt;</span> Analyze <span className="mx-2">&gt;</span > Act
             </span>
           </div>
-
         </div>
 
         <div className='flex items-center gap-3'>
-          {/* Status */}
           <span className={`inline-flex items-center gap-3 rounded-full border border-cyan-300 bg-white px-4 py-2 text-xs font-semibold shadow-sm ${statusTone}`}>
-
             <span className="relative flex h-2.5 w-2.5 text-green-500">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-30" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-current" />
             </span>
-
             {status}
           </span>
           <div className="relative z-50">
@@ -514,9 +475,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Main content area - properly constrained */}
       <div className="relative flex flex-1 overflow-hidden">
-
         <button
           onClick={() => setShowChat((prev) => !prev)}
           className="absolute left-80 top-1/2 z-[1300] flex h-12 w-7 -translate-y-1/2 items-center justify-center rounded-r-xl border border-white/50 bg-white/80 text-lg font-bold text-slate-700 shadow-lg backdrop-blur-md transition-all hover:bg-white"
@@ -553,14 +512,17 @@ export default function App() {
           setSelectedCategories={setSelectedCategories}
           selectedCategories={selectedCategories}
           openContextualPanel={openContextualPanel}
-          // to show grid over map
           setGridData={setGridData}
           showGrid={showGrid}
           setShowGrid={setShowGrid}
           onRadiusChange={setRadiusKm}
-          // to higlight the zones over the map
           onHighlightZones={setHighlightedZones}
+          showCityWiseAnalyse={showCityWiseAnalyse}
+          setShowCityWiseAnalyse={setShowCityWiseAnalyse}
+          onApp2SessionReady={setApp2SessionId}
+          onApp2DataReady={setApp2ZoneData}   // 👈 NEW
         />
+
         {showChat && (
           <div className="relative z-30 h-full w-80 shrink-0">
             <ContextualPanel
@@ -572,42 +534,15 @@ export default function App() {
               selectedSubcategories={selectedSubcategories}
               setSelectedSubcategories={setSelectedSubcategories}
               messages={messages}
-              onSend={handleContextualChat}
+              onSend={chatHandler}
               isChatSearching={isChatSearching}
-              isReady={isAnalyzed}
+              isReady={chatReady}
               poiData={poiData}
+              zoneData={app2ZoneData}   // 👈 NEW
             />
           </div>
         )}
-        {/* Map container */}
-        {/* <div className="relative flex-1 z-0 overflow-hidden">
-          {!lat && !isAnalyzing && (
-            <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-500">
-              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-[2rem] border border-white/70 bg-white/75 text-cyan-700 shadow-2xl shadow-slate-900/10 backdrop-blur-xl">
-                <GlobeIcon className="h-9 w-9" />
-              </div>
-              <p className="text-sm font-medium">Search or click on the map to select a location</p>
-            </div>
-          )}
 
-          {isAnalyzing && (
-            <AnalyzeLoader status={status} />
-          )}
-
-          <MapViewer
-            lat={lat}
-            lon={lon}
-            radiusKm={radiusKm}
-            poiData={poiData}
-            suggestions={suggestions}
-            onMapClick={handleMapClick}
-            isAnalyzing={isAnalyzing}
-            isAnalyzed={isAnalyzed}
-            trigger={showChat}
-            gridData={gridData}
-            showGrid={showGrid}
-          />
-        </div> */}
         <div className="relative flex-1 z-0 overflow-hidden">
           {!lat && !isAnalyzing && (
             <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-500">
@@ -618,9 +553,7 @@ export default function App() {
             </div>
           )}
 
-          {isAnalyzing && (
-            <AnalyzeLoader status={status} />
-          )}
+          {isAnalyzing && <AnalyzeLoader status={status} />}
 
           {SHOW_GRID_BUTTON && isAnalyzed && (
             <div className="absolute bottom-3 left-3 z-[1000] flex flex-col items-start gap-2">
@@ -664,20 +597,13 @@ export default function App() {
             selectedCategories={selectedCategories}
             setSelectedCategories={setSelectedCategories}
             selectedSubcategories={selectedSubcategories}
-            // to highlight the zones over map for app2 
             highlightedZones={highlightedZones}
           />
         </div>
-
-
-
       </div>
     </div>
   )
 }
-
-
-
 
 
 
@@ -699,7 +625,618 @@ export default function App() {
 //   analyzeLocation,
 //   chatWithAgent,
 //   exportPDF,
-//   reverseGeocode
+//   reverseGeocode,
+//   chatApp2LLM,   // 👈 imported for App2 chat
+// } from './services/api'
+// import ContextualPanel from './components/ContextualPanel'
+// import { isWithinDelhiBoundary } from './utils/delhiBoundary'
+
+// function normalizeKey(value) {
+//   return String(value || '').toLowerCase().replace(/[_\s-]+/g, '_')
+// }
+
+// function AnalyzeLoader({ status }) {
+//   return (
+//     <div style={{
+//       position: 'absolute',
+//       inset: 0,
+//       background: 'rgba(236, 253, 245, 0.42)',
+//       zIndex: 1000,
+//       display: 'flex',
+//       flexDirection: 'column',
+//       alignItems: 'center',
+//       justifyContent: 'center',
+//       gap: '20px',
+//       backdropFilter: 'blur(10px)',
+//     }}>
+
+//       <div style={{
+//         width: '64px',
+//         height: '64px',
+//         borderRadius: '24px',
+//         background: 'linear-gradient(135deg, #0f172a, #0891b2)',
+//         display: 'flex',
+//         alignItems: 'center',
+//         justifyContent: 'center',
+//         boxShadow: '0 24px 60px rgba(15,23,42,0.22)',
+//       }}>
+//         <LoaderIcon className="h-8 w-8 animate-spin text-white" />
+//       </div>
+
+//       <div style={{ textAlign: 'center' }}>
+//         <p style={{
+//           color: '#0f172a',
+//           fontSize: '15px',
+//           fontWeight: '600',
+//           margin: '0 0 6px',
+//         }}>
+//           Analyzing area
+//         </p>
+//         <p style={{
+//           color: '#475569',
+//           fontSize: '13px',
+//           margin: 0,
+//         }}>
+//           {status}
+//         </p>
+//       </div>
+
+//       <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+//         {[0, 1, 2].map(i => (
+//           <div key={i} style={{
+//             width: '8px',
+//             height: '8px',
+//             borderRadius: '50%',
+//             background: '#0891b2',
+//             opacity: 1 - i * 0.3,
+//             animation: `pulse 1.2s ${i * 0.2}s infinite`,
+//           }} />
+//         ))}
+//       </div>
+
+//       <style>{`
+//         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.2; } }
+//       `}</style>
+//     </div>
+//   )
+// }
+
+// export default function App() {
+//   const [lat, setLat] = useState(null)
+//   const [lon, setLon] = useState(null)
+//   const [radiusKm, setRadiusKm] = useState(1)
+//   const [poiData, setPoiData] = useState(null)
+//   const [isAnalyzing, setIsAnalyzing] = useState(false)
+//   const [isAnalyzed, setIsAnalyzed] = useState(false)
+//   const [status, setStatus] = useState('Ready')
+//   const [locationName, setLocationName] = useState('')
+//   const [summary, setSummary] = useState({})
+//   const [messages, setMessages] = useState([])
+//   const [isChatSearching, setIsChatSearching] = useState(false)
+//   const [suggestions, setSuggestions] = useState([])
+//   const [sessionId, setSessionId] = useState(null)
+//   const [showAdmin, setShowAdmin] = useState(false)
+//   const [showChat, setShowChat] = useState(false)
+//   const [contextualMode, setContextualMode] = useState('panel')
+//   const [selectedCategories, setSelectedCategories] = useState([])
+//   const [selectedSubcategories, setSelectedSubcategories] = useState({})
+//   const [roadSummary, setRoadSummary] = useState({})
+
+//   // Grid and road state
+//   const [gridData, setGridData] = useState([])
+//   const [roadData, setRoadData] = useState([])
+//   const [roadDataKey, setRoadDataKey] = useState('')
+//   const [showGrid, setShowGrid] = useState(false)
+//   const [showRoad, setShowRoad] = useState(false)
+//   const activeRoadRequestRef = useRef('')
+//   const analyzedRadiusRef = useRef(1)
+//   const SHOW_GRID_BUTTON = import.meta.env.VITE_SHOW_GRID_BUTTON === 'true'
+
+//   // App2 state
+//   const [highlightedZones, setHighlightedZones] = useState([])
+//   const [showCityWiseAnalyse, setShowCityWiseAnalyse] = useState(false)
+//   const [app2SessionId, setApp2SessionId] = useState(null)
+
+//   function openContextualPanel(mode = 'panel') {
+//     setContextualMode(mode)
+//     setShowChat(true)
+//   }
+
+//   function getRoadDataKey(nextLat = lat, nextLon = lon, nextRadius = radiusKm) {
+//     if (nextLat == null || nextLon == null || nextRadius == null) return ''
+//     return `${nextLat}:${nextLon}:${nextRadius}`
+//   }
+
+//   function resetRoadLayer() {
+//     activeRoadRequestRef.current = ''
+//     setRoadData([])
+//     setRoadDataKey('')
+//     setShowRoad(false)
+//   }
+
+//   useEffect(() => {
+//     const activeCategorySet = new Set(selectedCategories)
+
+//     setSelectedSubcategories((previousSelections) => {
+//       const nextSelections = {}
+
+//       Object.entries(previousSelections).forEach(([categoryKey, subcategories]) => {
+//         if (activeCategorySet.has(categoryKey) && subcategories.length > 0) {
+//           nextSelections[categoryKey] = subcategories
+//         }
+//       })
+
+//       if (Object.keys(nextSelections).length === Object.keys(previousSelections).length) {
+//         return previousSelections
+//       }
+
+//       return nextSelections
+//     })
+//   }, [selectedCategories])
+
+//   async function handleSearch(query, radius) {
+//     setStatus('Searching...')
+//     setRadiusKm(radius)
+//     resetRoadLayer()
+
+//     try {
+//       const data = await searchLocation(query)
+
+//       let lat = data?.lat
+//       let lon = data?.lon
+
+//       const isInside = isWithinDelhiBoundary(lat, lon)
+
+//       if (!isInside) {
+//         setStatus('Location is outside allowed boundary ')
+//         return false
+//       }
+
+//       // Reset everything for App1
+//       setLat(lat)
+//       setLon(lon)
+//       setLocationName(data.place_name)
+//       setPoiData(null)
+//       setSummary({})
+//       setIsAnalyzed(false)
+//       setSuggestions([])
+//       setSessionId(null)
+//       setMessages([])
+//       setShowChat(false)
+//       setContextualMode('panel')
+//       setSelectedCategories([])
+//       setSelectedSubcategories({})
+//       setRoadSummary({})
+
+//       // Also reset App2 state
+//       setShowCityWiseAnalyse(false)
+//       setApp2SessionId(null)
+//       setHighlightedZones([])
+
+//       setStatus(`Found: ${data.place_name} Inside boundary`)
+//       return true
+//     } catch (err) {
+//       setStatus('Location not found')
+//       return false
+//     }
+//   }
+
+//   function handleClearSearch() {
+//     setLat(null)
+//     setLon(null)
+//     setLocationName('')
+//     setPoiData(null)
+//     setSummary({})
+//     setIsAnalyzed(false)
+//     setSuggestions([])
+//     setSessionId(null)
+//     setMessages([])
+//     setShowChat(false)
+//     setContextualMode('panel')
+//     setSelectedCategories([])
+//     setSelectedSubcategories({})
+//     setGridData([])
+//     setShowGrid(false)
+//     resetRoadLayer()
+//     setRadiusKm(1)
+//     setStatus('Ready')
+
+//     // Reset App2 state
+//     setShowCityWiseAnalyse(false)
+//     setApp2SessionId(null)
+//     setHighlightedZones([])
+//   }
+
+//   async function handleAnalyze(radius = radiusKm) {
+//     if (!lat || !lon) return
+//     const analysisRadius = radius
+//     setRadiusKm(analysisRadius)
+//     analyzedRadiusRef.current = analysisRadius
+//     resetRoadLayer()
+
+//     setSelectedSubcategories({})
+//     setSelectedCategories([])
+//     setShowChat(false)
+
+//     setIsAnalyzing(true)
+
+//     try {
+//       setStatus('Fetching data ...')
+//       const pois = await fetchPOIs(lat, lon, analysisRadius)
+//       console.log("Grids data is", pois)
+//       setPoiData(pois)
+//       setSummary(pois.summary)
+//       setRoadSummary(pois.road_summary ?? {})
+//       setSelectedCategories(Object.keys(pois.pois || {}).map(normalizeKey))
+//       setSelectedSubcategories({})
+//       setGridData(pois.grids ?? [])
+
+//       setStatus('Storing data and building spatial grid...')
+//       const analyzeResult = await analyzeLocation(
+//         locationName, lat, lon, analysisRadius, pois
+//       )
+
+//       if (analyzeResult?.session_id) {
+//         setSessionId(analyzeResult.session_id)
+//         console.log('Session ID:', analyzeResult.session_id)
+//       }
+
+//       setIsAnalyzed(true)
+//       setSuggestions([])
+//       openContextualPanel('chat')
+//       setStatus(`Done`)
+//       addMessage('ai', `Analysis complete for ${locationName}.  Ask me anything.`)
+
+//     } catch (err) {
+//       setStatus('Failed')
+//       console.error(err)
+//       alert(err.message || 'Failed. Try a smaller radius.')
+//     } finally {
+//       setIsAnalyzing(false)
+//     }
+//   }
+
+//   async function handleDownload() {
+//     if (!isAnalyzed) return
+//     try {
+//       const blob = await exportPDF(
+//         locationName,
+//         lat,
+//         lon,
+//         radiusKm,
+//         summary,
+//         roadSummary,
+//         suggestions
+//       )
+//       const url = URL.createObjectURL(blob)
+//       const a = document.createElement('a')
+//       a.href = url
+//       a.download = 'site_report.pdf'
+//       a.click()
+//       URL.revokeObjectURL(url)
+//     } catch {
+//       alert('PDF failed.')
+//     }
+//   }
+
+//   async function handleToggleRoad() {
+//     if (!lat || !lon) return
+
+//     if (showRoad) {
+//       setShowRoad(false)
+//       return
+//     }
+
+//     try {
+//       const currentRoadDataKey = getRoadDataKey(lat, lon, analyzedRadiusRef.current)
+//       const hasRoadData = Array.isArray(roadData)
+//         ? roadData.length > 0
+//         : Boolean(roadData?.type)
+
+//       if (!hasRoadData || roadDataKey !== currentRoadDataKey) {
+//         setStatus('Fetching road data...')
+//         activeRoadRequestRef.current = currentRoadDataKey
+//         const roads = await fetchRoads(lat, lon, analyzedRadiusRef.current)
+
+//         if (activeRoadRequestRef.current !== currentRoadDataKey) return
+
+//         setRoadData(Array.isArray(roads) ? roads : roads?.roads ?? roads?.features ?? roads?.data ?? [])
+//         setRoadDataKey(currentRoadDataKey)
+//       }
+
+//       setShowRoad(true)
+//       setStatus('Done')
+//     } catch (error) {
+//       console.error(error)
+//       setStatus('Failed to fetch road data')
+//       alert(error.message || 'Failed to fetch road data.')
+//     }
+//   }
+
+//   function addMessage(role, text) {
+//     setMessages(prev => [...prev, { role, text }])
+//   }
+
+//   // ── App1 chat handler ──
+//   async function handleContextualChat(message) {
+//     if (isChatSearching) return
+
+//     addMessage('user', message)
+//     setIsChatSearching(true)
+
+//     try {
+//       const response = await chatWithAgent(message, sessionId)
+//       addMessage('ai', response?.response || 'No response received.')
+//       setSuggestions(Array.isArray(response?.suggestions) ? response.suggestions : [])
+//     } catch (error) {
+//       console.error(error)
+//       addMessage('ai', error.message || 'Error. Please try again.')
+//     } finally {
+//       setIsChatSearching(false)
+//     }
+//   }
+
+//   // ── App2 chat handler ──
+//   async function handleApp2Chat(message) {
+//     if (isChatSearching) return
+
+//     if (!app2SessionId) {
+//       addMessage('ai', 'Please analyse zones first.')
+//       return
+//     }
+
+//     addMessage('user', message)
+//     setIsChatSearching(true)
+
+//     try {
+//       const response = await chatApp2LLM(message, app2SessionId)
+//       addMessage('ai', response?.response || 'No response received.')
+//       setSuggestions(Array.isArray(response?.suggestions) ? response.suggestions : [])
+//     } catch (error) {
+//       console.error(error)
+//       addMessage('ai', error.message || 'Error. Please try again.')
+//     } finally {
+//       setIsChatSearching(false)
+//     }
+//   }
+
+//   async function handleMapClick(clickLat, clickLon) {
+//     if (!isWithinDelhiBoundary(clickLat, clickLon)) {
+//       setStatus('Selected location is outside allowed boundary')
+//       return
+//     }
+
+//     setStatus('Getting location name...')
+//     try {
+//       const data = await reverseGeocode(clickLat, clickLon)
+//       setLat(data.lat)
+//       setLon(data.lon)
+//       setLocationName(data.place_name)
+//       setPoiData(null)
+//       setSummary({})
+//       setIsAnalyzed(false)
+//       setSuggestions([])
+//       setSessionId(null)
+//       setMessages([])
+//       setShowChat(false)
+//       setContextualMode('panel')
+//       setSelectedCategories([])
+//       setSelectedSubcategories({})
+//       setRoadSummary({})
+//       resetRoadLayer()
+//       setStatus(`Found: ${data.place_name}`)
+//     } catch (err) {
+//       setStatus('Could not get location name')
+//     }
+//   }
+
+//   const statusTone = status === 'Ready'
+//     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+//     : status.startsWith('Failed')
+//       ? 'bg-rose-50 text-rose-700 border-rose-200'
+//       : 'bg-cyan-50 text-cyan-700 border-cyan-200'
+
+//   // Determine which chat handler to use
+//   const chatHandler = showCityWiseAnalyse ? handleApp2Chat : handleContextualChat
+//   const chatReady = showCityWiseAnalyse ? !!app2SessionId : isAnalyzed
+
+//   return (
+//     <div className="flex h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.2),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(20,184,166,0.18),_transparent_24%),linear-gradient(180deg,_#f8fafc_0%,_#e2e8f0_100%)] text-slate-900">
+//       <nav className="flex h-20 items-center justify-between bg-[#F9F8F6] border-b border-cyan-200 px-6 shadow-sm flex-shrink-0">
+//         <div className="flex items-center gap-4">
+//           <div className="relative">
+//             <img
+//               className="h-20 w-20 object-contain "
+//               src="/image.png"
+//               alt="Logo"
+//             />
+//           </div>
+//           <div>
+//             <p
+//               className="m-0 mb-[5px] text-[28px] leading-none font-montserrat font-bold uppercase "
+//             >
+//               <span className="text-[#011649]">Geo-Spatial</span>{" "}
+//               <span className="text-[#64ae09]">Intelligence</span>
+//             </p>
+//             <span className="block text-xl leading-none font-bold tracking-wide text-[#019ee1]">
+//               Locate <span className="mx-2">&gt;</span> Analyze <span className="mx-2">&gt;</span > Act
+//             </span>
+//           </div>
+//         </div>
+
+//         <div className='flex items-center gap-3'>
+//           <span className={`inline-flex items-center gap-3 rounded-full border border-cyan-300 bg-white px-4 py-2 text-xs font-semibold shadow-sm ${statusTone}`}>
+//             <span className="relative flex h-2.5 w-2.5 text-green-500">
+//               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-30" />
+//               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-current" />
+//             </span>
+//             {status}
+//           </span>
+//           <div className="relative z-50">
+//             <img
+//               className="h-10 w-10 cursor-pointer rounded-full object-cover"
+//               src="/user.png"
+//               alt="User"
+//               onClick={() => setShowAdmin(prev => !prev)}
+//             />
+//             {showAdmin && (
+//               <div className="absolute z-50 mt-1 right-0 top-full rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-lg">
+//                 admin
+//               </div>
+//             )}
+//           </div>
+//         </div>
+//       </nav>
+
+//       <div className="relative flex flex-1 overflow-hidden">
+//         <button
+//           onClick={() => setShowChat((prev) => !prev)}
+//           className="absolute left-80 top-1/2 z-[1300] flex h-12 w-7 -translate-y-1/2 items-center justify-center rounded-r-xl border border-white/50 bg-white/80 text-lg font-bold text-slate-700 shadow-lg backdrop-blur-md transition-all hover:bg-white"
+//           aria-label={showChat ? 'Close contextual panel' : 'Open contextual panel'}
+//         >
+//           {showChat ? '<' : '>'}
+//         </button>
+
+//         <SidePanel
+//           lat={lat}
+//           lon={lon}
+//           radiusKm={radiusKm}
+//           locationName={locationName}
+//           summary={summary}
+//           isAnalyzing={isAnalyzing}
+//           isAnalyzed={isAnalyzed}
+//           onSearch={handleSearch}
+//           onClearSearch={handleClearSearch}
+//           onAnalyze={handleAnalyze}
+//           onDownload={handleDownload}
+//           setIsAnalyzing={setIsAnalyzing}
+//           setIsAnalyzed={setIsAnalyzed}
+//           setSummary={setSummary}
+//           setLat={setLat}
+//           setLon={setLon}
+//           setLocationName={setLocationName}
+//           setPoiData={setPoiData}
+//           poiData={poiData}
+//           setStatus={setStatus}
+//           setRadiusKm={setRadiusKm}
+//           setSuggestions={setSuggestions}
+//           setSessionId={setSessionId}
+//           addMessage={addMessage}
+//           setSelectedCategories={setSelectedCategories}
+//           selectedCategories={selectedCategories}
+//           openContextualPanel={openContextualPanel}
+//           setGridData={setGridData}
+//           showGrid={showGrid}
+//           setShowGrid={setShowGrid}
+//           onRadiusChange={setRadiusKm}
+//           onHighlightZones={setHighlightedZones}
+//           showCityWiseAnalyse={showCityWiseAnalyse}
+//           setShowCityWiseAnalyse={setShowCityWiseAnalyse}
+//           onApp2SessionReady={setApp2SessionId}
+//         />
+
+//         {showChat && (
+//           <div className="relative z-30 h-full w-80 shrink-0">
+//             <ContextualPanel
+//               setShowChat={setShowChat}
+//               showChat={showChat}
+//               mode={contextualMode}
+//               onModeChange={setContextualMode}
+//               selectedCategories={selectedCategories}
+//               selectedSubcategories={selectedSubcategories}
+//               setSelectedSubcategories={setSelectedSubcategories}
+//               messages={messages}
+//               onSend={chatHandler}           // 👈 dynamically chosen
+//               isChatSearching={isChatSearching}
+//               isReady={chatReady}            // 👈 depends on mode
+//               poiData={poiData}
+//             />
+//           </div>
+//         )}
+
+//         <div className="relative flex-1 z-0 overflow-hidden">
+//           {!lat && !isAnalyzing && (
+//             <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-500">
+//               <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-[2rem] border border-white/70 bg-white/75 text-cyan-700 shadow-2xl shadow-slate-900/10 backdrop-blur-xl">
+//                 <GlobeIcon className="h-9 w-9" />
+//               </div>
+//               <p className="text-sm font-medium">Search or click on the map to select a location</p>
+//             </div>
+//           )}
+
+//           {isAnalyzing && <AnalyzeLoader status={status} />}
+
+//           {SHOW_GRID_BUTTON && isAnalyzed && (
+//             <div className="absolute bottom-3 left-3 z-[1000] flex flex-col items-start gap-2">
+//               <button
+//                 onClick={() => setShowGrid(prev => !prev)}
+//                 className={`rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-md backdrop-blur-sm transition-all
+//                   ${showGrid
+//                     ? 'bg-cyan-600 text-white border-cyan-700'
+//                     : 'bg-white/90 text-slate-700 border-slate-300 hover:border-cyan-400 hover:text-cyan-600'
+//                   }`}
+//               >
+//                 {showGrid ? 'Hide Grid' : 'Show Grid'}
+//               </button>
+//               <button
+//                 onClick={handleToggleRoad}
+//                 className={`rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-md backdrop-blur-sm transition-all
+//                   ${showRoad
+//                     ? 'bg-cyan-600 text-white border-cyan-700'
+//                     : 'bg-white/90 text-slate-700 border-slate-300 hover:border-cyan-400 hover:text-cyan-600'
+//                   }`}
+//               >
+//                 {showRoad ? 'Hide Road' : 'Show Road'}
+//               </button>
+//             </div>
+//           )}
+
+//           <MapViewer
+//             lat={lat}
+//             lon={lon}
+//             radiusKm={radiusKm}
+//             poiData={poiData}
+//             suggestions={suggestions}
+//             onMapClick={handleMapClick}
+//             isAnalyzing={isAnalyzing}
+//             isAnalyzed={isAnalyzed}
+//             trigger={showChat}
+//             gridData={gridData}
+//             showGrid={showGrid}
+//             roadData={roadData}
+//             showRoad={showRoad}
+//             selectedCategories={selectedCategories}
+//             setSelectedCategories={setSelectedCategories}
+//             selectedSubcategories={selectedSubcategories}
+//             highlightedZones={highlightedZones}
+//           />
+//         </div>
+//       </div>
+//     </div>
+//   )
+// }
+
+
+
+
+
+
+
+
+
+// import { useEffect, useRef, useState } from 'react'
+// import MapViewer from './components/MapViewer'
+// import SidePanel from './components/sidePanel'
+// import { GlobeIcon, LoaderIcon } from './components/Icons'
+// import {
+//   searchLocation,
+//   fetchPOIs,
+//   fetchRoads,
+//   analyzeLocation,
+//   chatWithAgent,
+//   exportPDF,
+//   reverseGeocode,
+//   chatApp2LLM
 // } from './services/api'
 // import ContextualPanel from './components/ContextualPanel'
 // import { isWithinDelhiBoundary } from './utils/delhiBoundary'
@@ -806,6 +1343,11 @@ export default function App() {
 //   // for enabling and disabling the button
 //   const SHOW_GRID_BUTTON = import.meta.env.VITE_SHOW_GRID_BUTTON === 'true'
 
+//   // for highlighting the zones in app2
+//   const [highlightedZones, setHighlightedZones] = useState([]);
+//   const [showCityWiseAnalyse, setShowCityWiseAnalyse] = useState(false);
+//   const [app2SessionId, setApp2SessionId] = useState(null);
+
 //   function openContextualPanel(mode = 'panel') {
 //     setContextualMode(mode)
 //     setShowChat(true)
@@ -886,62 +1428,6 @@ export default function App() {
 //   }
 
 
-
-//   // async function handleSearch(query, radius) {
-//   //   setStatus('Searching...')
-//   //   setRadiusKm(radius)
-
-//   //   try {
-//   //     const data = await searchLocation(query)
-
-//   //     let lat = data?.lat
-//   //     let lon = data?.lon
-
-//   //     const isInside = isWithinDelhiBoundary(lat, lon)
-
-//   //     if (!isInside) {
-//   //       setStatus('Location is outside allowed boundary ')
-//   //       return false
-//   //     }
-
-//   //     // Reset previous analysis state
-//   //     setLat(lat)
-//   //     setLon(lon)
-//   //     setLocationName(data.place_name)
-
-//   //     setPoiData(null)
-//   //     setSummary({})
-//   //     setRoadSummary({})
-
-//   //     setIsAnalyzed(false)
-//   //     setIsAnalyzing(false)
-
-//   //     setSuggestions([])
-//   //     setSessionId(null)
-//   //     setMessages([])
-
-//   //     setShowChat(false)
-//   //     setContextualMode('panel')
-
-//   //     setSelectedCategories([])
-//   //     setSelectedSubcategories({})
-
-//   //     // IMPORTANT RESETS
-//   //     setGridData([])
-//   //     setRoadData([])
-
-//   //     setShowGrid(false)
-//   //     setShowRoad(false)
-
-//   //     setStatus(`Found: ${data.place_name} Inside boundary`)
-//   //     return true
-
-//   //   } catch (err) {
-//   //     setStatus('Location not found')
-//   //     return false
-//   //   }
-//   // }
-
 //   function handleClearSearch() {
 //     setLat(null)
 //     setLon(null)
@@ -1014,20 +1500,6 @@ export default function App() {
 //     }
 //   }
 
-//   // async function handleDownload() {
-//   //   if (!isAnalyzed) return
-//   //   try {
-//   //     const blob = await exportPDF(locationName, lat, lon, radiusKm, summary)
-//   //     const url = URL.createObjectURL(blob)
-//   //     const a = document.createElement('a')
-//   //     a.href = url
-//   //     a.download = 'site_report.pdf'
-//   //     a.click()
-//   //     URL.revokeObjectURL(url)
-//   //   } catch {
-//   //     alert('PDF failed.')
-//   //   }
-//   // }
 //   async function handleDownload() {
 //     if (!isAnalyzed) return
 //     try {
@@ -1245,6 +1717,11 @@ export default function App() {
 //           showGrid={showGrid}
 //           setShowGrid={setShowGrid}
 //           onRadiusChange={setRadiusKm}
+//           // to higlight the zones over the map
+//           onHighlightZones={setHighlightedZones}
+//           showCityWiseAnalyse={showCityWiseAnalyse}
+//           setShowCityWiseAnalyse={setShowCityWiseAnalyse}
+//           onApp2SessionReady={setApp2SessionId}
 //         />
 //         {showChat && (
 //           <div className="relative z-30 h-full w-80 shrink-0">
@@ -1264,35 +1741,6 @@ export default function App() {
 //             />
 //           </div>
 //         )}
-//         {/* Map container */}
-//         {/* <div className="relative flex-1 z-0 overflow-hidden">
-//           {!lat && !isAnalyzing && (
-//             <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-500">
-//               <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-[2rem] border border-white/70 bg-white/75 text-cyan-700 shadow-2xl shadow-slate-900/10 backdrop-blur-xl">
-//                 <GlobeIcon className="h-9 w-9" />
-//               </div>
-//               <p className="text-sm font-medium">Search or click on the map to select a location</p>
-//             </div>
-//           )}
-
-//           {isAnalyzing && (
-//             <AnalyzeLoader status={status} />
-//           )}
-
-//           <MapViewer
-//             lat={lat}
-//             lon={lon}
-//             radiusKm={radiusKm}
-//             poiData={poiData}
-//             suggestions={suggestions}
-//             onMapClick={handleMapClick}
-//             isAnalyzing={isAnalyzing}
-//             isAnalyzed={isAnalyzed}
-//             trigger={showChat}
-//             gridData={gridData}
-//             showGrid={showGrid}
-//           />
-//         </div> */}
 //         <div className="relative flex-1 z-0 overflow-hidden">
 //           {!lat && !isAnalyzing && (
 //             <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-500">
@@ -1349,6 +1797,8 @@ export default function App() {
 //             selectedCategories={selectedCategories}
 //             setSelectedCategories={setSelectedCategories}
 //             selectedSubcategories={selectedSubcategories}
+//             // to highlight the zones over map for app2
+//             highlightedZones={highlightedZones}
 //           />
 //         </div>
 
@@ -1358,3 +1808,11 @@ export default function App() {
 //     </div>
 //   )
 // }
+
+
+
+
+
+
+
+

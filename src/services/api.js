@@ -79,9 +79,7 @@ export async function analyzeLocation(location, lat, lon, radius_km, poi_data) {
 }
 
 // 4. Ask AI a question → returns { response, suggestions }
-//    Accepts sessionId from App.jsx state
-//    Falls back to internally stored _sessionId
-//    Returns suggestions array with top 3 locations
+
 export async function chatWithAgent(message, sessionId = null) {
     return postWithSession('/chat', { message }, sessionId)
 }
@@ -257,7 +255,7 @@ export async function fetchCityWiseDropdownItems(city) {
 
 
 
-export async function analyzeZones(city, zones) {
+export async function fetchZones(city, zones) {
     const response = await fetch(`${BASE}/app2/zones`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -270,4 +268,26 @@ export async function analyzeZones(city, zones) {
     }
 
     return response.json();
+}
+
+
+
+// ── App2 session storage ──
+let _app2SessionId = null;
+
+// ── App2: store zone data (with pois, summary, etc.) and get session ──
+export async function analyzeZonesWithLLM(city, zones) {
+    const data = await post('/app2/analyze', { city, zones });
+
+    if (data.session_id) {
+        _app2SessionId = data.session_id;
+        console.log('🔍 App2 Session ID saved:', _app2SessionId);
+    }
+
+    return data; // { session_id }
+}
+
+// // ── App2: chat using the session ──
+export async function chatApp2LLM(message, sessionId = null) {
+    return postWithSession('/app2/chat', { message }, sessionId || _app2SessionId);
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ChevronDownIcon, SparklesIcon } from './Icons'
-import { fetchCityWiseDropdownItems, analyzeZones, fetchDashboardCategories } from '../services/api'
+import { fetchCityWiseDropdownItems, fetchZones, fetchDashboardCategories, analyzeZonesWithLLM } from '../services/api'
 import targetIcon from '../assets/target.png'
 
 function normalizeKey(value) {
@@ -27,7 +27,7 @@ function excludeShowroom(summary) {
     )
 }
 
-const CityWiseAnalyse = ({ onBack, onAnalysisComplete, onZonesSelected }) => {
+const CityWiseAnalyse = ({ onBack, onAnalysisComplete, onZonesSelected, onApp2SessionReady }) => {
     const dropdownItems = ['Select city', 'Delhi']
     const [selectedItem, setSelectedItem] = useState(dropdownItems[0])
     const [secondDropdownItems, setSecondDropdownItems] = useState([])
@@ -120,30 +120,14 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete, onZonesSelected }) => {
         setSelectedZones(new Set())
     }
 
-    // async function handleAnalyze() {
-    //     if (selectedZones.size === 0) return
-    //     setIsAnalyzing(true)
-    //     setAnalysisResult(null)
 
-    //     try {
-    //         const result = await analyzeZones(selectedItem, [...selectedZones])
-    //         setAnalysisResult(result)
-    //         if (onAnalysisComplete) {
-    //             onAnalysisComplete(result)
-    //         }
-    //     } catch (error) {
-    //         alert(error.message || 'Analysis failed')
-    //     } finally {
-    //         setIsAnalyzing(false)
-    //     }
-    // }
     async function handleAnalyze() {
         if (selectedZones.size === 0) return
         setIsAnalyzing(true)
         setAnalysisResult(null)
 
         try {
-            const result = await analyzeZones(selectedItem, [...selectedZones])
+            const result = await fetchZones(selectedItem, [...selectedZones])
             setAnalysisResult(result)
             if (onAnalysisComplete) {
                 onAnalysisComplete(result)
@@ -155,6 +139,18 @@ const CityWiseAnalyse = ({ onBack, onAnalysisComplete, onZonesSelected }) => {
                     .filter(item => selectedZones.has(getZoneValue(item)))
                     .map(item => getZoneLabel(item))
                 onZonesSelected(selectedLabels)
+            }
+            // --- NEW: initialise LLM with zone data for App2 chat ---
+            if (onApp2SessionReady) {
+                try {
+                    const initData = await analyzeZonesWithLLM(selectedItem, result.zones)
+                    if (initData?.session_id) {
+                        onApp2SessionReady(initData.session_id)
+                    }
+                } catch (err) {
+                    console.warn('App2 LLM initialisation failed:', err)
+                    // Optionally notify user, but we continue without blocking
+                }
             }
         } catch (error) {
             alert(error.message || 'Analysis failed')
