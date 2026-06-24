@@ -14,7 +14,7 @@ import {
 import { useState, useEffect } from 'react';
 import { fetchDashboardCategories, fetchCategoriesCount } from '../services/api';
 
-export default function Dashboard({ lat, lon, radiusKm,  onItemClick, onSelectionChange }) {
+export default function Dashboard({ locationName, summary, lat, lon, radiusKm, onDownload, onItemClick, onSelectionChange }) {
     const [categories, setCategories] = useState([]);
     const [selectedCategories, setSelectedCategories] = useState([]);
 
@@ -89,14 +89,6 @@ export default function Dashboard({ lat, lon, radiusKm,  onItemClick, onSelectio
 
                     </div>
                 </div>
-
-                {/* {locationName && (
-                    <div className="mb-4 flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/85 px-3 py-2 text-xs text-slate-600">
-                        <PinIcon className="h-4 w-4 text-cyan-600" />
-                        <p className="truncate">{locationName}</p>
-                    </div>
-                )} */}
-
                 <div className="mb-2 grid grid-cols-1 gap-2">
                     {categories.map(({ key, icon, label, count }) => { // 1. Removed 'icon: Icon' alias
                         const isSelected = selectedCategories.includes(key);

@@ -1,4 +1,4 @@
-const BASE = 'http://192.168.1.29:8002/api'
+const BASE = 'http://192.168.1.16:8001/api'
 
 // ── Session ID — stored after /analyze, sent on every /chat ──
 // Also accepts sessionId passed explicitly from App.jsx
@@ -293,4 +293,33 @@ export async function analyzeZones(city, zones) {
     }
 
     return response.json();
+}
+
+
+
+// ── App2 session storage ──
+let _app2SessionId = null;
+
+// ── App2: store zone data (with pois, summary, etc.) and get session ──
+export async function analyzeZonesWithLLM(city, zones) {
+    const data = await post('/app2/analyze', { city, zones });
+
+    console.log("APP2 RESPONSE =", data);
+
+    if (!data) {
+        console.error("Backend returned NULL");
+        return null;
+    }
+
+    if (data.session_id) {
+        _app2SessionId = data.session_id;
+        console.log('🔍 App2 Session ID saved:', _app2SessionId);
+    }
+
+    return data;
+}
+
+// // ── App2: chat using the session ──
+export async function chatApp2LLM(message, sessionId = null) {
+    return postWithSession('/app2/chat', { message }, sessionId || _app2SessionId);
 }

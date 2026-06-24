@@ -9,7 +9,8 @@ import {
   analyzeLocation,
   chatWithAgent,
   exportPDF,
-  reverseGeocode
+  reverseGeocode,
+  chatApp2LLM,   // 👈 imported for App2 chat
 } from './services/api'
 import ContextualPanel from './components/ContextualPanel'
 import { isWithinDelhiBoundary } from './utils/delhiBoundary'
@@ -126,6 +127,9 @@ const [selectedZoneLayers, setSelectedZoneLayers] = useState([])
   // for highlighting the zones in app2
   const [highlightedZones, setHighlightedZones] = useState([]);
 const [cityWisePoiData, setCityWisePoiData] =useState(null)
+ const [showCityWiseAnalyse, setShowCityWiseAnalyse] = useState(false)
+  const [app2SessionId, setApp2SessionId] = useState(null)
+  const [app2ZoneData, setApp2ZoneData] = useState(null)   // 👈 NEW
 
   function openContextualPanel(mode = 'panel') {
     setContextualMode(mode)
@@ -198,6 +202,12 @@ const [cityWisePoiData, setCityWisePoiData] =useState(null)
       setSelectedSubcategories({})
       setRoadSummary({})
 
+      // Also reset App2 state
+      setShowCityWiseAnalyse(false)
+      setApp2SessionId(null)
+      setHighlightedZones([])
+      setApp2ZoneData(null)   // 👈 NEW
+
       setStatus(`Found: ${data.place_name} Inside boundary`)
       return true
     } catch (err) {
@@ -205,63 +215,6 @@ const [cityWisePoiData, setCityWisePoiData] =useState(null)
       return false
     }
   }
-
-
-
-  // async function handleSearch(query, radius) {
-  //   setStatus('Searching...')
-  //   setRadiusKm(radius)
-
-  //   try {
-  //     const data = await searchLocation(query)
-
-  //     let lat = data?.lat
-  //     let lon = data?.lon
-
-  //     const isInside = isWithinDelhiBoundary(lat, lon)
-
-  //     if (!isInside) {
-  //       setStatus('Location is outside allowed boundary ')
-  //       return false
-  //     }
-
-  //     // Reset previous analysis state
-  //     setLat(lat)
-  //     setLon(lon)
-  //     setLocationName(data.place_name)
-
-  //     setPoiData(null)
-  //     setSummary({})
-  //     setRoadSummary({})
-
-  //     setIsAnalyzed(false)
-  //     setIsAnalyzing(false)
-
-  //     setSuggestions([])
-  //     setSessionId(null)
-  //     setMessages([])
-
-  //     setShowChat(false)
-  //     setContextualMode('panel')
-
-  //     setSelectedCategories([])
-  //     setSelectedSubcategories({})
-
-  //     // IMPORTANT RESETS
-  //     setGridData([])
-  //     setRoadData([])
-
-  //     setShowGrid(false)
-  //     setShowRoad(false)
-
-  //     setStatus(`Found: ${data.place_name} Inside boundary`)
-  //     return true
-
-  //   } catch (err) {
-  //     setStatus('Location not found')
-  //     return false
-  //   }
-  // }
 
   function handleClearSearch() {
     setLat(null)
@@ -282,6 +235,12 @@ const [cityWisePoiData, setCityWisePoiData] =useState(null)
     resetRoadLayer()
     setRadiusKm(1)
     setStatus('Ready')
+
+    // Reset App2 state
+    setShowCityWiseAnalyse(false)
+    setApp2SessionId(null)
+    setHighlightedZones([])
+    setApp2ZoneData(null)   // 👈 NEW
   }
 
   async function handleAnalyze(radius = radiusKm) {
@@ -335,20 +294,7 @@ const [cityWisePoiData, setCityWisePoiData] =useState(null)
     }
   }
 
-  // async function handleDownload() {
-  //   if (!isAnalyzed) return
-  //   try {
-  //     const blob = await exportPDF(locationName, lat, lon, radiusKm, summary)
-  //     const url = URL.createObjectURL(blob)
-  //     const a = document.createElement('a')
-  //     a.href = url
-  //     a.download = 'site_report.pdf'
-  //     a.click()
-  //     URL.revokeObjectURL(url)
-  //   } catch {
-  //     alert('PDF failed.')
-  //   }
-  // }
+
   async function handleDownload() {
     if (!isAnalyzed) return
     try {
@@ -410,49 +356,59 @@ useEffect(() => {
     }
   }
 
-// function handleZoneCategorySelect(category, pois) {
-//   setCityWiseMode(true)
-//   setSelectedZoneCategory(category)
-//   setSelectedZonePois(pois)
+  function addMessage(role, text) {
+    setMessages(prev => [...prev, { role, text }])
+  }
 
-//   console.log("Category:", category)
-//   console.log("POIs:", pois)
-// }
-// function handleZoneCategorySelect(
-//     category,
-//     pois,
-//     zoneName
-// ) {
+  // ── App1 chat handler ──
+  async function handleContextualChat(message) {
+    if (isChatSearching) return
 
-//     console.log("Zone:", zoneName)
+    addMessage('user', message)
+    setIsChatSearching(true)
 
-//     setCityWiseMode(true)
+    try {
+      const response = await chatWithAgent(message, sessionId)
+      addMessage('ai', response?.response || 'No response received.')
+      setSuggestions(Array.isArray(response?.suggestions) ? response.suggestions : [])
+    } catch (error) {
+      console.error(error)
+      addMessage('ai', error.message || 'Error. Please try again.')
+    } finally {
+      setIsChatSearching(false)
+    }
+  }
 
-//     setSelectedZoneCategory(category)
+  // ── App2 chat handler ──
+  async function handleApp2Chat(message) {
+    if (isChatSearching) return
 
-//     setSelectedZonePois(pois)
-// }
-function handleZoneCategorySelect(
+    if (!app2SessionId) {
+      addMessage('ai', 'Please analyse zones first.')
+      return
+    }
+
+    addMessage('user', message)
+    setIsChatSearching(true)
+
+    try {
+      const response = await chatApp2LLM(message, app2SessionId)
+      addMessage('ai', response?.response || 'No response received.')
+      setSuggestions(Array.isArray(response?.suggestions) ? response.suggestions : [])
+    } catch (error) {
+      console.error(error)
+      addMessage('ai', error.message || 'Error. Please try again.')
+    } finally {
+      setIsChatSearching(false)
+    }
+  }
+  function handleZoneCategorySelect(
     category,
     pois,
     zoneName,
 ) {
     setCityWiseMode(true)
 
-    // setSelectedZoneLayers(prev => [
-    //     ...prev.filter(
-    //         item =>
-    //             !(
-    //                 item.zoneName === zoneName &&
-    //                 item.category === category
-    //             )
-    //     ),
-    //     {
-    //         zoneName,
-    //         category,
-    //         pois
-    //     }
-    // ])
 const summary = {}
 
 pois.forEach(poi => {
@@ -507,15 +463,6 @@ openContextualPanel('panel')
             item.category === category
     )
 
-    // if (exists) {
-    //     return prev.filter(
-    //         item =>
-    //             !(
-    //                 item.zoneName === zoneName &&
-    //                 item.category === category
-    //             )
-    //     )
-    // }
     if (exists) {
 
     setCityWisePoiData(prevData => {
@@ -556,27 +503,29 @@ openContextualPanel('panel')
     ]
 })
 }
-  function addMessage(role, text) {
+  
+
+function addMessage(role, text) {
     setMessages(prev => [...prev, { role, text }])
   }
 
-  async function handleContextualChat(message) {
-    if (isChatSearching) return
+  // async function handleContextualChat(message) {
+  //   if (isChatSearching) return
 
-    addMessage('user', message)
-    setIsChatSearching(true)
+  //   addMessage('user', message)
+  //   setIsChatSearching(true)
 
-    try {
-      const response = await chatWithAgent(message, sessionId)
-      addMessage('ai', response?.response || 'No response received.')
-      setSuggestions(Array.isArray(response?.suggestions) ? response.suggestions : [])
-    } catch (error) {
-      console.error(error)
-      addMessage('ai', error.message || 'Error. Please try again.')
-    } finally {
-      setIsChatSearching(false)
-    }
-  }
+  //   try {
+  //     const response = await chatApp2LLM(message, app2SessionId)
+  //     addMessage('ai', response?.response || 'No response received.')
+  //     setSuggestions(Array.isArray(response?.suggestions) ? response.suggestions : [])
+  //   } catch (error) {
+  //     console.error(error)
+  //     addMessage('ai', error.message || 'Error. Please try again.')
+  //   } finally {
+  //     setIsChatSearching(false)
+  //   }
+  // }
 
   async function handleMapClick(clickLat, clickLon) {
     if (!isWithinDelhiBoundary(clickLat, clickLon)) {
@@ -615,6 +564,13 @@ openContextualPanel('panel')
     : status.startsWith('Failed')
       ? 'bg-rose-50 text-rose-700 border-rose-200'
       : 'bg-cyan-50 text-cyan-700 border-cyan-200'
+
+  // Determine which chat handler to use
+  const chatHandler = showCityWiseAnalyse ? handleApp2Chat : handleContextualChat
+  const chatReady = showCityWiseAnalyse ? !!app2SessionId : isAnalyzed
+  console.log("showCityWiseAnalyse =", showCityWiseAnalyse)
+console.log("app2SessionId =", app2SessionId)
+console.log("chatReady =", chatReady)
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.2),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(20,184,166,0.18),_transparent_24%),linear-gradient(180deg,_#f8fafc_0%,_#e2e8f0_100%)] text-slate-900">
@@ -716,12 +672,14 @@ openContextualPanel('panel')
           onRadiusChange={setRadiusKm}
           // to higlight the zones over the map
           onHighlightZones={setHighlightedZones}
-          onHighlightZones={setHighlightedZones}
         onCategorySelect={handleZoneCategorySelect}
           selectedZoneLayers={selectedZoneLayers}
           setCityWiseMode={setCityWiseMode}
            setCityWisePoiData={setCityWisePoiData}
-
+              showCityWiseAnalyse={showCityWiseAnalyse}
+          setShowCityWiseAnalyse={setShowCityWiseAnalyse}
+          onApp2SessionReady={setApp2SessionId}
+          onApp2DataReady={setApp2ZoneData}   // 👈 NEW
         />
         {showChat && (
           <div className="relative z-30 h-full w-80 shrink-0">
@@ -734,9 +692,12 @@ openContextualPanel('panel')
               selectedSubcategories={selectedSubcategories}
               setSelectedSubcategories={setSelectedSubcategories}
               messages={messages}
-              onSend={handleContextualChat}
+              onSend={chatHandler}
               isChatSearching={isChatSearching}
-              isReady={isAnalyzed}
+              // isReady={isAnalyzed}
+               isReady={chatReady}
+              // poiData={poiData}
+              zoneData={app2ZoneData}  
     poiData={
     cityWiseMode
         ? cityWisePoiData
@@ -745,35 +706,7 @@ openContextualPanel('panel')
             />
           </div>
         )}
-        {/* Map container */}
-        {/* <div className="relative flex-1 z-0 overflow-hidden">
-          {!lat && !isAnalyzing && (
-            <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-500">
-              <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-[2rem] border border-white/70 bg-white/75 text-cyan-700 shadow-2xl shadow-slate-900/10 backdrop-blur-xl">
-                <GlobeIcon className="h-9 w-9" />
-              </div>
-              <p className="text-sm font-medium">Search or click on the map to select a location</p>
-            </div>
-          )}
-
-          {isAnalyzing && (
-            <AnalyzeLoader status={status} />
-          )}
-
-          <MapViewer
-            lat={lat}
-            lon={lon}
-            radiusKm={radiusKm}
-            poiData={poiData}
-            suggestions={suggestions}
-            onMapClick={handleMapClick}
-            isAnalyzing={isAnalyzing}
-            isAnalyzed={isAnalyzed}
-            trigger={showChat}
-            gridData={gridData}
-            showGrid={showGrid}
-          />
-        </div> */}
+       
         <div className="relative flex-1 z-0 overflow-hidden">
           {!lat && !isAnalyzing && (
             <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center text-slate-500">
@@ -784,9 +717,7 @@ openContextualPanel('panel')
             </div>
           )}
 
-          {isAnalyzing && (
-            <AnalyzeLoader status={status} />
-          )}
+          {isAnalyzing && (<AnalyzeLoader status={status} /> )}
 
           {SHOW_GRID_BUTTON && isAnalyzed && (
             <div className="absolute bottom-3 left-3 z-[1000] flex flex-col items-start gap-2">
@@ -847,13 +778,7 @@ openContextualPanel('panel')
   )
 }
 
-/**
-Added Car Showroom category click functionality to show POIs on the map
-Updated Zone Wise Details cards to be clickable and connected with map data
-Added subcategory filtering support in the Contextual Panel
-Fixed map markers to display only selected subcategory data
-Implemented map layer clearing when switching between Search Analysis and City Wise Analysis
-Added active card highlighting for selected subcategory
-Investigated and verified duplicate location coordinates affecting marker visibility
- */
 
+/**
+ 
+**/

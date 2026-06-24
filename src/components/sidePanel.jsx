@@ -4,14 +4,6 @@ import Dashboard from "./Dashboard";
 import CityWiseAnalyse from "./CityWiseAnalyse";
 import { DownloadIcon } from './Icons'
 import './sidePanel.css'
-
-// function normalizeKey(value) {
-//     return String(value || '')
-//         .trim()
-//         .toLowerCase()
-//         .replace(/[_\s-]+/g, '')
-// }
-
 export default function SidePanel({
     lat,
     lon,
@@ -24,18 +16,34 @@ export default function SidePanel({
     onClearSearch,
     onAnalyze,
     onDownload,
+    setIsAnalyzing,
+    setIsAnalyzed,
+    setSummary,
+    setLat,
+    setLon,
+    setLocationName,
+    setPoiData,
+    setStatus,
+    setSuggestions,
+    setSessionId,
     setRadiusKm,
+    addMessage,
     openContextualPanel,
     setSelectedCategories,
+    setGridData,
     setShowGrid,
     showGrid,
+    onRadiusChange,
     onHighlightZones, 
     onCategorySelect,  // ← new prop
     selectedZoneLayers,
     setCityWiseMode, 
-    setCityWisePoiData
+    setCityWisePoiData,
+      showCityWiseAnalyse,
+    setShowCityWiseAnalyse,
+    onApp2SessionReady,
+    onApp2DataReady,
 }) {
-    const [showCityWiseAnalyse, setShowCityWiseAnalyse] = useState(false)
 
     function handleShowCityWiseAnalyse() {
         onClearSearch?.()
@@ -54,10 +62,13 @@ export default function SidePanel({
           setCityWiseMode(false)
         onHighlightZones([]);
         setCityWisePoiData?.(null)
+           onApp2SessionReady?.(null);
     }}
     onZonesSelected={onHighlightZones}
     onCategorySelect={onCategorySelect}
        selectedZoneLayers={selectedZoneLayers}
+         onApp2SessionReady={onApp2SessionReady}
+                    onAnalysisComplete={onApp2DataReady}
 />
             ) : (
                 <>

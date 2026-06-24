@@ -8,7 +8,7 @@ import {
     SendIcon
 } from './Icons'
 
-// import { formatMessage } from '../formatting'
+
 
 const QUICK_QUESTIONS = [
     { label: 'Human Hospitals', text: 'Is this a good location to open a Hospital for Human?', icon: HospitalIcon },
@@ -25,13 +25,25 @@ export default function ChatPanel({ messages, onSend, isThinking, isReady }) {
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages, isThinking])
+function handleSend() {
+    console.log("handleSend called")
 
-    function handleSend() {
-        if (!input.trim() || !isReady || isThinking) return
-        onSend(input.trim())
-        setInput('')
+    console.log({
+        input,
+        isReady,
+        isThinking
+    })
+
+    if (!input.trim() || !isReady || isThinking) {
+        console.log("BLOCKED")
+        return
     }
 
+    console.log("SENDING =", input)
+
+    onSend(input.trim())
+    setInput('')
+}
     return (
         <div className="flex h-full flex-col gap-3 rounded-2xl border border-slate-200/50 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
             {/* Header */}

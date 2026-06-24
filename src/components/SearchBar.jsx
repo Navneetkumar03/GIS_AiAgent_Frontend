@@ -54,32 +54,7 @@ export default function SearchBar({
     const percentage = (radiusIndex / (radiusOptions.length - 1)) * 100;
     return (
         <div className="group rounded-xl  bg-white/72 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-            {/* <div className='ml-3 mb-2'>
-                <div className="mb-1 flex  items-center gap-2">
-                    <div className="flex h-3 w-3 min-h-[1.5rem] min-w-[1.5rem] items-center justify-center rounded-full bg-slate-900 text-white shadow-lg shadow-slate-900/15">
-                        <TargetIcon className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold uppercase text-slate-900">
-                            Search Location
-                        </h3>
-                    </div>
-
-                    <button
-                        onClick={() => setShowGrid(prev => !prev)}
-                        className={`mr-2 rounded-md border px-2 py-1 text-[11px] font-semibold transition-all
-        ${showGrid
-                                ? 'bg-cyan-600 text-white border-cyan-700'
-                                : 'bg-white text-slate-600 border-slate-300 hover:border-cyan-400 hover:text-cyan-600'
-                            }`}
-                    >
-                        {showGrid ? 'Hide Grid' : 'Show Grid'}
-                    </button>
-                </div>
-                <p className="text-xs text-slate-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                    Pick a place, radius, and start the analysis.
-                </p>
-            </div> */}
+        
             <div className='ml-3 mb-2'>
             <div className="mb-1 flex items-center justify-between">
     <div className="flex h-3 w-3 min-h-[1.5rem] min-w-[1.5rem] items-center justify-center rounded-full bg-slate-900 text-white shadow-lg shadow-slate-900/15">
@@ -96,7 +71,7 @@ export default function SearchBar({
     <button
         type="button"
         onClick={onShowCityWiseAnalyse}
-        className="rounded-full bg-cyan-300 p-1 transition hover:bg-cyan-700"
+        className="rounded-full bg-[#95cac7] p-1 transition hover:bg-cyan-700"
     >
         <img
             src={carIcon}
